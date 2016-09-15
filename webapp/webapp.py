@@ -68,20 +68,19 @@ def reddit_oauth_callback():
         return "Hi!"
 
 
-'''
-
 @app.route('/slack/commands', methods=['POST'])
 def command():
     slack_request = utils.SlackRequest(request, SLACK_COMMANDS_TOKEN)
     if slack_request.is_valid:
 
-        response = handler.command_response(slack_request, form=request.form)
+        response = handler.handle_command(slack_request)
 
         return Response(response=response.get_json(), mimetype="application/json")
 
     else:
         return "Invalid request token."
 
+'''
 
 @app.route('/slack/action-endpoint', methods=['POST'])
 def button_response():
@@ -103,5 +102,4 @@ def button_response():
 @app.route('/redditslacker/status', methods=['GET'])
 def check_status():
     return Response(), 200
-
 '''

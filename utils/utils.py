@@ -2,9 +2,13 @@ import requests
 import json
 import configparser
 import time
+from peewee import Using
+from reddit_interface.database import AlreadyDoneModel
 
 
 def get_token(token_name, section, config_name='config.ini'):
+
+    """Get token from .ini file"""
 
     config = configparser.ConfigParser()
     config.read(config_name)
@@ -16,6 +20,9 @@ REDDIT_APP_SECRET = get_token("REDDIT_APP_SECRET", "credentials")
 
 
 def set_team_access_credentials(team_name, credentials):
+
+    """Save Reddit user's access/refresh tokens for the bot to use"""
+
     config = configparser.ConfigParser()
     config.read(team_name + '_oauth.ini')
     config.set('token', 'token', credentials['access_token'])
@@ -27,6 +34,9 @@ def set_team_access_credentials(team_name, credentials):
 
 
 def team_from_team_name(team_name):
+
+    """Return a team object from the team's name"""
+
     config = configparser.ConfigParser()
     config.read('teams.ini')
     team = None
@@ -43,12 +53,17 @@ def team_from_team_name(team_name):
 
 class SlackTeamsConfig:
 
+    """Takes care of setting up the config for new Slack teams and holding a list of the current teams"""
+
     def __init__(self, filename):
         self.filename = filename
         self.config = configparser.ConfigParser()
         self.teams = self.get_teams()
 
     def get_teams(self):
+
+        """Parse teams configfile to generate Team objects"""
+
         teams = list()
         self.config.read(self.filename)
 
@@ -63,6 +78,9 @@ class SlackTeamsConfig:
         return teams
 
     def add_team(self, args_dict):
+
+        """Save new team's attributes to configfile"""
+
         self.config.read(self.filename)
         if not args_dict['ok']:
             return False
@@ -91,6 +109,9 @@ class SlackTeamsConfig:
         return team
 
     def set_subreddit(self, team_name, subreddit):
+
+        """Bind a Slack team to a subreddit for the bot to operate on"""
+
         self.config.read(self.filename)
         team = None
         for team in self.teams:
@@ -106,6 +127,9 @@ class SlackTeamsConfig:
 
     @staticmethod
     def _create_oauth_file(team_name):
+
+        """Create and prepare a configfile to store the team's authorizing user Reddit access/refresh tokens"""
+
         config = configparser.ConfigParser()
 
         try:
@@ -130,18 +154,6 @@ class SlackTeamsConfig:
 
         with open(team_name + '_oauth.ini', 'w') as configfile:
             config.write(configfile)
-
-
-class RSConfig:
-
-    def __init__(self, filename):
-        self.filename = filename
-        self.config = configparser.ConfigParser()
-
-    @property
-    def user_agent(self):
-        self.config.read(self.filename)
-        return self.config['credentials', 'REDDIT_USER_AGENT']
 
 
 class SlackTeam:
@@ -339,7 +351,7 @@ class SlackRequest:
         self.command = None
         self.actions = None
         self.callback_id = None
-        self.is_valid = False
+        self.is_valid = True
         self.slash_commands_secret = slash_commands_secret
 
         if 'payload' in self.form:
@@ -358,15 +370,15 @@ class SlackRequest:
             self.team_domain = self.form['team_domain']
             self.team_id = self.form['team_id']
             self.command = self.form['command']
-            self.text = self.form['text']
+            self.command_args = self.form['text'].split()
             self.channel_name = self.form['channel_name']
 
         self.response_url = self.form['response_url']
         self.token = self.form['token']
         self.team = team_from_team_name(self.team_domain)
 
-        if self.token == self.slash_commands_secret:
-            self.is_valid = True
+        # if self.token == self.slash_commands_secret:
+            # self.is_valid = True
 
     def delayed_response(self, response):
 
@@ -382,3 +394,34 @@ class SlackRequest:
         slack_response = requests.post(self.response_url, data=response, headers=headers)
 
         return slack_response
+
+
+class AlreadyDoneHelper:
+
+    def __init__(self, db):
+        self.db = db
+
+        with Using(self.db, [AlreadyDoneModel]):
+            for item in AlreadyDoneModel.select():
+                if time.time() - item.timestamp.timestamp() > 7200:
+                    item.delete_instance()
+
+    def add(self, thing_id):
+        with Using(self.db, [AlreadyDoneModel]):
+            AlreadyDoneModel.create(thing_id=thing_id, timestamp=time.time())
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

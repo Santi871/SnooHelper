@@ -5,6 +5,8 @@
 /config.ini
 /.idea
 /*_oauth.ini
+/*.db
+/*.db-journal
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]

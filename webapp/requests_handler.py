@@ -1,4 +1,5 @@
 from reddit_interface.bot import RedditBot
+import utils.utils as utils
 
 
 class RequestsHandler:
@@ -15,6 +16,10 @@ class RequestsHandler:
         if team.team_name not in self.bots and team.subreddit is not None:
             self.bots[team.team_name] = RedditBot(team=team)
 
-
+    def handle_command(self, slack_request):
+        response = utils.SlackResponse("Processing your request... please allow a few seconds.")
+        if slack_request.command == '/userz':
+            self.bots[slack_request.team_domain].user_summary(user=slack_request.command_args[0], request=slack_request)
+        return response
 
 
