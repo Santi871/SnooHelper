@@ -48,7 +48,6 @@ def own_thread(func):
         r = praw.Reddit(user_agent="windows:RedditSlacker2 0.1 by /u/santi871", handler=handler)
         o = OAuth2Util.OAuth2Util(r, configfile=bot_obj.oauth_config_filename)
         r.config.api_request_delay = 1
-        o.refresh()
 
         if kwargs is not None:
             kwargs['r'] = r
@@ -56,6 +55,7 @@ def own_thread(func):
         else:
             kwargs = {'r': r, 'o': o}
 
+        o.refresh()
         thread = CreateThread(1, str(func) + " thread", args[0], func, kwargs)
         thread.start()
 

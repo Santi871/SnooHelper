@@ -17,10 +17,24 @@ def set_team_access_credentials(team_name, credentials):
     config.read(team_name + '_oauth.ini')
     config.set('token', 'token', credentials['access_token'])
     config.set('token', 'refresh_token', credentials['refresh_token'])
-    config.set('token', 'valid_until', time.time() + 3600)
+    config.set('token', 'valid_until', str(time.time() + 3600))
 
     with open(team_name + '_oauth.ini', 'w') as configfile:
         config.write(configfile)
+
+
+def team_from_team_name(team_name):
+    config = configparser.ConfigParser()
+    config.read('teams.ini')
+    team = None
+
+    for section in config.sections():
+        if section == team_name:
+            team = SlackTeam(team_name=team_name, team_id=config[section]['team_id'],
+                             access_token=config[section]['access_token'], subreddit=config[section]['subreddit'])
+        break
+
+    return team
 
 
 class SlackTeamsConfig:
@@ -44,6 +58,7 @@ class SlackTeamsConfig:
         return teams
 
     def add_team(self, args_dict):
+        self.config.read(self.filename)
         if not args_dict['ok']:
             return False
 
@@ -59,12 +74,31 @@ class SlackTeamsConfig:
 
         self.config[team_name]["team_id"] = team_id
         self.config[team_name]['access_token'] = access_token
+        self.config[team_name]["subreddit"] = "None"
         with open(self.filename, 'w') as configfile:
             self.config.write(configfile)
         team = SlackTeam(team_name, team_id, access_token)
         self.teams.append(team)
-        self._create_oauth_file(team_name)
 
+        try:
+            self._create_oauth_file(team_name)
+        except configparser.DuplicateSectionError:
+            pass
+
+        return team
+
+    def set_subreddit(self, team_name, subreddit):
+        self.config.read(self.filename)
+        team = None
+        for team in self.teams:
+            if team.team_name == team_name:
+                team.subreddit = subreddit
+                for section in self.config.sections():
+                    if section == team_name:
+                        self.config.set(section, 'subreddit', subreddit)
+                        with open(self.filename, 'w') as configfile:
+                            self.config.write(configfile)
+                break
         return team
 
     @staticmethod
@@ -75,7 +109,7 @@ class SlackTeamsConfig:
         config.add_section('server')
         config.add_section('token')
 
-        config.set('app', 'scope', 'identity,modlog,modposts')
+        config.set('app', 'scope', 'identity,modlog,modposts,mysubreddits')
         config.set('app', 'refreshable', 'True')
         config.set('server', 'server_mode', 'False')
         config.set('server', 'url', '127.0.0.1')
@@ -84,7 +118,7 @@ class SlackTeamsConfig:
         config.set('server', 'link_path', 'oauth')
         config.set('token', 'token', 'None')
         config.set('token', 'refresh_token', 'None')
-        config.set('token', 'valid_until', 0)
+        config.set('token', 'valid_until', '0')
 
         with open(team_name + '_oauth.ini', 'w') as configfile:
             config.write(configfile)
@@ -104,15 +138,16 @@ class RSConfig:
 
 class SlackTeam:
 
-    def __init__(self, team_name, team_id, access_token):
+    def __init__(self, team_name, team_id, access_token, subreddit=None):
         self.team_name = team_name
         self.team_id = team_id
         self.access_token = access_token
+        self.subreddit = subreddit
 
 
 class SlackButton:
 
-    def __init__(self, text, value=None, style="default", confirm=None, yes=None):
+    def __init__(self, text, value=None, style="default", confirm=None, yes='Yes'):
         self.button_dict = dict()
         self.button_dict['text'] = text
         self.button_dict['name'] = text
@@ -319,6 +354,7 @@ class SlackRequest:
 
         self.response_url = self.form['response_url']
         self.token = self.form['token']
+        self.team = team_from_team_name(self.team_domain)
 
         if self.token == self.slash_commands_secret:
             self.is_valid = True
