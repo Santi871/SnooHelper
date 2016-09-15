@@ -34,7 +34,8 @@ def team_from_team_name(team_name):
     for section in config.sections():
         if section == team_name:
             team = SlackTeam(team_name=team_name, team_id=config[section]['team_id'],
-                             access_token=config[section]['access_token'], subreddit=config[section]['subreddit'])
+                             access_token=config[section]['access_token'], subreddit=config[section]['subreddit'],
+                             webhook_url=config[section]['webhook_url'])
         break
 
     return team
@@ -55,7 +56,8 @@ class SlackTeamsConfig:
             team_name = section
             team_id = self.config[section]['team_id']
             access_token = self.config[section]['access_token']
-            team = SlackTeam(team_name, team_id, access_token)
+            team = SlackTeam(team_name, team_id, access_token, subreddit=self.config[section]['subreddit'],
+                             webhook_url=self.config[section]['webhook_url'])
             teams.append(team)
 
         return teams
@@ -68,19 +70,20 @@ class SlackTeamsConfig:
         team_name = args_dict['team_name']
         team_id = args_dict['team_id']
         access_token = args_dict['access_token']
+        webhook_url = args_dict['incoming_webhook']['url']
 
         try:
             self.config.add_section(team_name)
         except configparser.DuplicateSectionError:
-            # team already exists
-            raise
+            pass
 
         self.config[team_name]["team_id"] = team_id
         self.config[team_name]['access_token'] = access_token
+        self.config[team_name]['webhook_url'] = webhook_url
         self.config[team_name]["subreddit"] = "None"
         with open(self.filename, 'w') as configfile:
             self.config.write(configfile)
-        team = SlackTeam(team_name, team_id, access_token)
+        team = SlackTeam(team_name, team_id, access_token, webhook_url)
         self.teams.append(team)
 
         self._create_oauth_file(team_name)
@@ -143,10 +146,11 @@ class RSConfig:
 
 class SlackTeam:
 
-    def __init__(self, team_name, team_id, access_token, subreddit=None):
+    def __init__(self, team_name, team_id, access_token, webhook_url, subreddit=None):
         self.team_name = team_name
         self.team_id = team_id
         self.access_token = access_token
+        self.webhook_url = webhook_url
         self.subreddit = subreddit
 
 

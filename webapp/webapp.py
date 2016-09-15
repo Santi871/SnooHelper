@@ -1,11 +1,10 @@
 import os
 import requests
-from flask import Flask, request, Response, redirect, render_template
+from flask import Flask, request, Response, redirect, render_template, make_response
 from flask_sslify import SSLify
 import utils.utils as utils
 from .requests_handler import RequestsHandler
 from .form import SubredditSelectForm
-from configparser import DuplicateSectionError
 import praw
 
 SLACK_APP_ID = utils.get_token("SLACK_APP_ID", "credentials")
@@ -24,7 +23,6 @@ slack_teams_config = utils.SlackTeamsConfig('teams.ini')
 handler = RequestsHandler(slack_teams_config)
 master_r = praw.Reddit("windows:RedditSlacker2 0.1 by /u/santi871", handler=praw.handlers.MultiprocessHandler())
 master_r.set_oauth_app_info(client_id=REDDIT_APP_ID, client_secret=REDDIT_APP_SECRET, redirect_uri=REDDIT_REDIRECT_URI)
-team_names = dict()
 
 
 @app.route("/slack/oauthcallback")
@@ -32,15 +30,12 @@ def slack_oauth_callback():
     data = {'client_id': SLACK_APP_ID, 'client_secret': SLACK_APP_SECRET, 'code': request.args.get('code')}
     response = requests.post('https://slack.com/api/oauth.access', params=data)
     response_json = response.json()
-
-    try:
-        slack_teams_config.add_team(response_json)
-    except DuplicateSectionError:
-        return "Error: team has already added RS2."
-
-    team_names[request.remote_addr] = response_json['team_name']
+    slack_teams_config.add_team(response_json)
     url = master_r.get_authorize_url('uniqueKey', ['identity', 'mysubreddits', 'modposts', 'modlog'], refreshable=True)
-    return redirect(url, code=302)
+    response = make_response(redirect(url, code=302))
+    response.set_cookie('slack_team_name', response_json['team_name'])
+
+    return response
 
 
 @app.route('/reddit/oauthcallback', methods=['POST', 'GET'])
@@ -52,7 +47,7 @@ def reddit_oauth_callback():
         if code is not None:
             try:
                 access_information = master_r.get_access_information(code)
-                team_name = team_names.get(request.remote_addr)
+                team_name = request.cookies.get('slack_team_name')
             except (KeyError, praw.errors.OAuthInvalidGrant, praw.errors.OAuthInvalidToken):
                 return "There was an error processing your request, please try again."
             utils.set_team_access_credentials(team_name, access_information)
@@ -63,11 +58,12 @@ def reddit_oauth_callback():
 
     elif request.method == 'POST':
         subreddit = form.subreddit_select.data
-        team_name = team_names.pop(request.remote_addr, None)
+        team_name = request.cookies.get('slack_team_name', None)
 
         if team_name is None:
             return "There was an error processing your request, please try again."
         slack_teams_config.set_subreddit(team_name, subreddit)
+        master_r.clear_authentication()
 
         return "Hi!"
 
