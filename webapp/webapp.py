@@ -46,21 +46,22 @@ def slack_oauth_callback():
 @app.route('/reddit/oauthcallback', methods=['POST', 'GET'])
 def reddit_oauth_callback():
     form = SubredditSelectForm()
-    if not form.validate_on_submit() and request.method == 'GET':
-        code = request.args.get('code', ' ')
-        access_information = master_r.get_access_information(code)
 
-        try:
-            team_name = team_names.get(request.remote_addr)
-        except KeyError:
-            return "There was an error processing your request, please try again."
-        utils.set_team_access_credentials(team_name, access_information)
-        moderated_subreddits = master_r.get_my_moderation()
-        choices = [(subreddit.display_name, subreddit.display_name) for subreddit in moderated_subreddits]
-        form.subreddit_select.choices = choices
+    if request.method == 'GET':
+        code = request.args.get('code', None)
+        if code is not None:
+            try:
+                access_information = master_r.get_access_information(code)
+                team_name = team_names.get(request.remote_addr)
+            except (KeyError, praw.errors.OAuthInvalidGrant, praw.errors.OAuthInvalidToken):
+                return "There was an error processing your request, please try again."
+            utils.set_team_access_credentials(team_name, access_information)
+            moderated_subreddits = master_r.get_my_moderation()
+            choices = [(subreddit.display_name, subreddit.display_name) for subreddit in moderated_subreddits]
+            form.subreddit_select.choices = choices
+            return render_template('subreddit_select.html', title='Select Subreddit', form=form)
 
-        return render_template('subreddit_select.html', title='Select Subreddit', form=form)
-    else:
+    elif request.method == 'POST':
         subreddit = form.subreddit_select.data
         team_name = team_names.pop(request.remote_addr, None)
 

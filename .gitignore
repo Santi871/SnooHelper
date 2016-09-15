@@ -4,6 +4,7 @@
 /santihub.crt
 /config.ini
 /.idea
+/*_oauth.ini
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]
@@ -11,6 +12,7 @@ __pycache__/
 
 # C extensions
 *.so
+/.idea/vcs.xml
 
 # Distribution / packaging
 .Python

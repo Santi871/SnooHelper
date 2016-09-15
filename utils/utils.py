@@ -11,6 +11,9 @@ def get_token(token_name, section, config_name='config.ini'):
     token = config.get(section, token_name)
     return token
 
+REDDIT_APP_ID = get_token("REDDIT_APP_ID", "credentials")
+REDDIT_APP_SECRET = get_token("REDDIT_APP_SECRET", "credentials")
+
 
 def set_team_access_credentials(team_name, credentials):
     config = configparser.ConfigParser()
@@ -80,10 +83,7 @@ class SlackTeamsConfig:
         team = SlackTeam(team_name, team_id, access_token)
         self.teams.append(team)
 
-        try:
-            self._create_oauth_file(team_name)
-        except configparser.DuplicateSectionError:
-            pass
+        self._create_oauth_file(team_name)
 
         return team
 
@@ -105,12 +105,17 @@ class SlackTeamsConfig:
     def _create_oauth_file(team_name):
         config = configparser.ConfigParser()
 
-        config.add_section('app')
-        config.add_section('server')
-        config.add_section('token')
+        try:
+            config.add_section('app')
+            config.add_section('server')
+            config.add_section('token')
+        except configparser.DuplicateSectionError:
+            pass
 
         config.set('app', 'scope', 'identity,modlog,modposts,mysubreddits')
         config.set('app', 'refreshable', 'True')
+        config.set('app', 'app_key', REDDIT_APP_ID)
+        config.set('app', 'app_secret', REDDIT_APP_SECRET)
         config.set('server', 'server_mode', 'False')
         config.set('server', 'url', '127.0.0.1')
         config.set('server', 'port', '65010')
