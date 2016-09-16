@@ -4,6 +4,7 @@ from time import sleep
 import requests.exceptions
 import praw
 import OAuth2Util
+from peewee import SqliteDatabase
 
 
 class CreateThread(threading.Thread):
@@ -29,6 +30,10 @@ class CreateThread(threading.Thread):
             except (requests.exceptions.HTTPError, praw.errors.HTTPException):
                 sleep(2)
                 continue
+            except requests.exceptions.ConnectionError:
+                print("Ran into a ConnectionError")
+                sleep(10)
+                continue
             except:
                 print("*Unhandled exception"
                       " in thread* '%s'." % self.name)
@@ -48,12 +53,15 @@ def own_thread(func):
         r = praw.Reddit(user_agent="windows:RedditSlacker2 0.1 by /u/santi871", handler=handler)
         o = OAuth2Util.OAuth2Util(r, configfile=bot_obj.oauth_config_filename)
         r.config.api_request_delay = 1
+        db = SqliteDatabase(bot_obj.subreddit_name + '.db')
+        db.connect()
 
         if kwargs is not None:
             kwargs['r'] = r
             kwargs['o'] = o
+            kwargs['db'] = db
         else:
-            kwargs = {'r': r, 'o': o}
+            kwargs = {'r': r, 'o': o, 'db': db}
 
         o.refresh()
         thread = CreateThread(1, str(func) + " thread", args[0], func, kwargs)

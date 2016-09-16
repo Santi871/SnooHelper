@@ -32,7 +32,7 @@ class RedditBot:
         request.delayed_response(response)
 
     @bot_threading.own_thread
-    def scan_modlog(self, r, o):
+    def scan_modlog(self, r, o, db):
         subreddit = r.get_subreddit(self.subreddit_name)
 
         while True:
@@ -45,7 +45,7 @@ class RedditBot:
                 except IntegrityError:
                     continue
 
-                with Using(self.db, [UserModel]):
+                with Using(db, [UserModel]):
                     user, _ = UserModel.get_or_create(username=item.target_author)
                     if item.action == 'removecomment':
                         user.removed_comments += 1
