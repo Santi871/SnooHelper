@@ -59,9 +59,8 @@ def own_thread(func):
         if kwargs is not None:
             kwargs['r'] = r
             kwargs['o'] = o
-            kwargs['db'] = db
         else:
-            kwargs = {'r': r, 'o': o, 'db': db}
+            kwargs = {'r': r, 'o': o}
 
         o.refresh()
         thread = CreateThread(1, str(func) + " thread", args[0], func, kwargs)
