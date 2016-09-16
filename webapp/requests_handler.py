@@ -4,6 +4,8 @@ import utils.utils as utils
 
 class RequestsHandler:
 
+    """Processes incoming slack requests, performs operations on appropriate Reddit bot and returns a SlackResponse"""
+
     def __init__(self, slack_teams_config):
         self.slack_teams_config = slack_teams_config
         self.bots = dict()

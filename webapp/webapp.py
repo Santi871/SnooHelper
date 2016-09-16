@@ -30,8 +30,14 @@ def slack_oauth_callback():
     data = {'client_id': SLACK_APP_ID, 'client_secret': SLACK_APP_SECRET, 'code': request.args.get('code')}
     response = requests.post('https://slack.com/api/oauth.access', params=data)
     response_json = response.json()
-    slack_teams_config.add_team(response_json)
-    url = master_r.get_authorize_url('uniqueKey', ['identity', 'mysubreddits', 'modposts', 'modlog'], refreshable=True)
+
+    try:
+        slack_teams_config.add_team(response_json)
+    except utils.TeamAlreadyExists:
+        return "Error: Your team has already installed RedditSlacker2."
+
+    url = master_r.get_authorize_url('uniqueKey', ['identity', 'mysubreddits', 'modposts', 'modlog', 'read'],
+                                     refreshable=True)
     response = make_response(redirect(url, code=302))
     response.set_cookie('slack_team_name', response_json['team_name'])
 
@@ -65,7 +71,7 @@ def reddit_oauth_callback():
         slack_teams_config.set_subreddit(team_name, subreddit)
         master_r.clear_authentication()
 
-        return "Hi!"
+        return "Successfully added Slack team and linked to subreddit. Enjoy!"
 
 
 @app.route('/slack/commands', methods=['POST'])

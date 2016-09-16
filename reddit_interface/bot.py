@@ -2,10 +2,12 @@ from reddit_interface import bot_threading
 import utils.utils as utils
 from time import sleep
 from peewee import SqliteDatabase, Using, OperationalError, IntegrityError
-from reddit_interface.database import UserModel, AlreadyDoneModel
+from .database_models import UserModel, AlreadyDoneModel
 
 
 class RedditBot:
+
+    """Primary Reddit interface - interacts with Reddit on behalf of the user/subreddit/Slack team"""
 
     def __init__(self, team):
         self.config = team
@@ -49,9 +51,7 @@ class RedditBot:
                         user.removed_comments += 1
                     elif item.action == 'removelink':
                         user.removed_submissions += 1
-
                     user.save()
-
             sleep(10)
 
 

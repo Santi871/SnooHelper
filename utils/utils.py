@@ -3,7 +3,7 @@ import json
 import configparser
 import time
 from peewee import Using
-from reddit_interface.database import AlreadyDoneModel
+from reddit_interface.database_models import AlreadyDoneModel
 
 
 def get_token(token_name, section, config_name='config.ini'):
@@ -93,7 +93,7 @@ class SlackTeamsConfig:
         try:
             self.config.add_section(team_name)
         except configparser.DuplicateSectionError:
-            pass
+            raise TeamAlreadyExists
 
         self.config[team_name]["team_id"] = team_id
         self.config[team_name]['access_token'] = access_token
@@ -139,7 +139,7 @@ class SlackTeamsConfig:
         except configparser.DuplicateSectionError:
             pass
 
-        config.set('app', 'scope', 'identity,modlog,modposts,mysubreddits')
+        config.set('app', 'scope', 'identity,modlog,modposts,mysubreddits,read')
         config.set('app', 'refreshable', 'True')
         config.set('app', 'app_key', REDDIT_APP_ID)
         config.set('app', 'app_secret', REDDIT_APP_SECRET)
@@ -351,7 +351,7 @@ class SlackRequest:
         self.command = None
         self.actions = None
         self.callback_id = None
-        self.is_valid = True
+        self.is_valid = False
         self.slash_commands_secret = slash_commands_secret
 
         if 'payload' in self.form:
@@ -377,8 +377,8 @@ class SlackRequest:
         self.token = self.form['token']
         self.team = team_from_team_name(self.team_domain)
 
-        # if self.token == self.slash_commands_secret:
-            # self.is_valid = True
+        if self.token == self.slash_commands_secret:
+            self.is_valid = True
 
     def delayed_response(self, response):
 
@@ -411,8 +411,8 @@ class AlreadyDoneHelper:
             AlreadyDoneModel.create(thing_id=thing_id, timestamp=time.time())
 
 
-
-
+class TeamAlreadyExists(Exception):
+    pass
 
 
 
