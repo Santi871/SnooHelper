@@ -1,6 +1,6 @@
 from peewee import IntegerField, TextField, SqliteDatabase, Model, BooleanField, TimestampField
 
-db = SqliteDatabase(None)
+db = SqliteDatabase('redditslacker_master.db')
 
 
 class BaseModel(Model):
@@ -17,8 +17,10 @@ class UserModel(BaseModel):
     bans = IntegerField(default=0)
     shadowbanned = BooleanField(default=False)
     tracked = BooleanField(default=False)
+    subreddit = TextField()
 
 
 class AlreadyDoneModel(BaseModel):
     thing_id = TextField(unique=True)
     timestamp = TimestampField()
+    subreddit = TextField()

@@ -2,7 +2,6 @@ import requests
 import json
 import configparser
 import time
-from peewee import Using
 from reddit_interface.database_models import AlreadyDoneModel
 
 
@@ -43,12 +42,43 @@ def team_from_team_name(team_name):
 
     for section in config.sections():
         if section == team_name:
+            usernotes = config.getboolean(section, 'usernotes')
             team = SlackTeam(team_name=team_name, team_id=config[section]['team_id'],
                              access_token=config[section]['access_token'], subreddit=config[section]['subreddit'],
-                             webhook_url=config[section]['webhook_url'])
+                             webhook_url=config[section]['webhook_url'], usernotes=usernotes)
         break
 
     return team
+
+
+def slackresponse_from_original_message(original_message, delete_buttons=False):
+    response = SlackResponse(text=original_message.get('text', ''))
+    attachments = original_message.get('attachments', list())
+
+    for attachment in attachments:
+        duplicate_attachment = response.add_attachment(title=attachment.get('title', None),
+                                                       title_link=attachment.get('title_link', None),
+                                                       fallback=attachment.get('fallback', None),
+                                                       color=attachment.get('color', None),
+                                                       footer=attachment.get('footer', None),
+                                                       callback_id=attachment.get('callback_id', None),
+                                                       image_url=attachment.get('image_url', None),
+                                                       text=attachment.get('text', None),
+                                                       author_name=attachment.get('author_name', None),
+                                                       ts=attachment.get('ts', None))
+
+        for field in attachment.get('fields', list()):
+            duplicate_attachment.add_field(title=field.get('title', None), value=field.get('value', None),
+                                           short=field.get('short', False))
+
+        if not delete_buttons:
+            for button in attachment.get('actions', list()):
+                confirm = button.get('confirm', dict())
+                duplicate_attachment.add_button(button.get('text'), value=button.get('value', None),
+                                                style=button.get('style', 'default'), confirm=confirm.get('text', None),
+                                                yes=confirm.get('ok_text', 'Yes'))
+
+    return response
 
 
 class SlackTeamsConfig:
@@ -71,8 +101,11 @@ class SlackTeamsConfig:
             team_name = section
             team_id = self.config[section]['team_id']
             access_token = self.config[section]['access_token']
-            team = SlackTeam(team_name, team_id, access_token, subreddit=self.config[section]['subreddit'],
-                             webhook_url=self.config[section]['webhook_url'])
+            usernotes = self.config.getboolean(section, 'usernotes')
+            subreddit = self.config.get(section, 'subreddit')
+
+            team = SlackTeam(team_name, team_id, access_token, subreddit=subreddit,
+                             webhook_url=self.config[section]['webhook_url'], usernotes=usernotes)
             teams.append(team)
 
         return teams
@@ -98,7 +131,8 @@ class SlackTeamsConfig:
         self.config[team_name]["team_id"] = team_id
         self.config[team_name]['access_token'] = access_token
         self.config[team_name]['webhook_url'] = webhook_url
-        self.config[team_name]["subreddit"] = "None"
+        self.config[team_name]["subreddit"] = "False"
+        self.config[team_name]["usernotes"] = "False"
         with open(self.filename, 'w') as configfile:
             self.config.write(configfile)
         team = SlackTeam(team_name, team_id, access_token, webhook_url)
@@ -108,7 +142,7 @@ class SlackTeamsConfig:
 
         return team
 
-    def set_subreddit(self, team_name, subreddit):
+    def set_subreddit(self, team_name, subreddit, usernotes=False):
 
         """Bind a Slack team to a subreddit for the bot to operate on"""
 
@@ -120,6 +154,7 @@ class SlackTeamsConfig:
                 for section in self.config.sections():
                     if section == team_name:
                         self.config.set(section, 'subreddit', subreddit)
+                        self.config.set(section, 'usernotes', str(usernotes))
                         with open(self.filename, 'w') as configfile:
                             self.config.write(configfile)
                 break
@@ -139,7 +174,8 @@ class SlackTeamsConfig:
         except configparser.DuplicateSectionError:
             pass
 
-        config.set('app', 'scope', 'identity,modlog,modposts,mysubreddits,read')
+        # Add variable scopes form, not hardcoded
+        config.set('app', 'scope', 'identity,modlog,modposts,mysubreddits,read,history')
         config.set('app', 'refreshable', 'True')
         config.set('app', 'app_key', REDDIT_APP_ID)
         config.set('app', 'app_secret', REDDIT_APP_SECRET)
@@ -158,12 +194,16 @@ class SlackTeamsConfig:
 
 class SlackTeam:
 
-    def __init__(self, team_name, team_id, access_token, webhook_url, subreddit=None):
+    def __init__(self, team_name, team_id, access_token, webhook_url, subreddit=None, usernotes=False):
         self.team_name = team_name
         self.team_id = team_id
         self.access_token = access_token
         self.webhook_url = webhook_url
-        self.subreddit = subreddit
+        self.usernotes = usernotes
+        if subreddit == 'False':
+            self.subreddit = None
+        else:
+            self.subreddit = subreddit
 
 
 class SlackButton:
@@ -257,7 +297,7 @@ class SlackResponse:
             self.response_dict['text'] = text
 
         if not replace_original:
-            self.response_dict['replace_original'] = 'false'
+            self.response_dict['replace_original'] = False
 
         self.response_dict['response_type'] = response_type
 
@@ -364,6 +404,7 @@ class SlackRequest:
             self.callback_id = self.form['callback_id']
             self.actions = self.form['actions']
             self.message_ts = self.form['message_ts']
+            self.channel = self.form['channel']['id']
             self.original_message = self.form['original_message']
         else:
             self.user = self.form['user_name']
@@ -398,17 +439,14 @@ class SlackRequest:
 
 class AlreadyDoneHelper:
 
-    def __init__(self, db):
-        self.db = db
+    def __init__(self):
+        for item in AlreadyDoneModel.select():
+            if time.time() - item.timestamp.timestamp() > 7200:
+                item.delete_instance()
 
-        with Using(self.db, [AlreadyDoneModel]):
-            for item in AlreadyDoneModel.select():
-                if time.time() - item.timestamp.timestamp() > 7200:
-                    item.delete_instance()
-
-    def add(self, thing_id):
-        with Using(self.db, [AlreadyDoneModel]):
-            AlreadyDoneModel.create(thing_id=thing_id, timestamp=time.time())
+    @staticmethod
+    def add(thing_id, subreddit):
+        AlreadyDoneModel.create(thing_id=thing_id, timestamp=time.time(), subreddit=subreddit)
 
 
 class TeamAlreadyExists(Exception):
