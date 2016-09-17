@@ -1,0 +1,40 @@
+from reddit_interface.bot import RedditBot
+import utils.utils as utils
+
+
+class RequestsHandler:
+
+    """Processes incoming slack requests, performs operations on appropriate Reddit bot and returns a SlackResponse"""
+
+    def __init__(self, slack_teams_config):
+        self.slack_teams_config = slack_teams_config
+        self.bots = dict()
+
+        for team in self.slack_teams_config.teams:
+            if team.subreddit is not None:
+                self.bots[team.team_name] = RedditBot(team=team)
+
+    def add_new_bot(self, team_name):
+        team = utils.team_from_team_name(team_name)
+        if team_name not in self.bots and team.subreddit is not None:
+            self.bots[team.team_name] = RedditBot(team=team)
+
+    def handle_command(self, slack_request):
+        response = utils.SlackResponse("Processing your request... please allow a few seconds.")
+        if slack_request.command == '/userz':
+            self.bots[slack_request.team_domain].quick_user_summary(user=slack_request.command_args[0],
+                                                                    request=slack_request)
+        return response
+
+    def handle_button(self, slack_request):
+        response = utils.SlackResponse("Processing your request... please allow a few seconds.", replace_original=False)
+        button_pressed = slack_request.actions[0]['value'].split('_')[0]
+        args = slack_request.actions[0]['value'].split('_')[1:]
+
+        if button_pressed == "summary":
+            response = None
+            self.bots[slack_request.team_domain].expanded_user_summary(request=slack_request,
+                                                                                  limit=int(args[0]),
+                                                                                  username=args[1])
+
+        return response
