@@ -5,8 +5,9 @@ import time
 
 class UserWarnings:
 
-    def __init__(self, webhook, comment_threshold, submission_threshold, ban_threshold):
+    def __init__(self, subreddit, webhook, comment_threshold, submission_threshold, ban_threshold):
         self.webhook = webhook
+        self.subreddit = subreddit
         self.comment_threshold = comment_threshold
         self.submission_threshold = submission_threshold
         self.ban_threshold = ban_threshold
@@ -18,7 +19,7 @@ class UserWarnings:
         attachment = None
 
         if isinstance(user, str):
-            user, _ = UserModel.get_or_create(username=user)
+            user, _ = UserModel.get_or_create(username=user, subreddit=self.subreddit)
 
         if user.comment_removals > self.comment_threshold:
             attachment = message.add_attachment(title="Warning regarding user /u/" + user.username,
@@ -54,7 +55,7 @@ class UserWarnings:
             self.webhook.send_message(message)
 
     def check_user_posts(self, thing):
-        user, _ = UserModel.get_or_create(username=thing.author.name)
+        user, _ = UserModel.get_or_create(username=thing.author.name, subreddit=thing.subreddit.display_name)
 
         if user.tracked:
             message = utils.SlackResponse("New post by user /u/" + user.username)
@@ -71,7 +72,7 @@ class UserWarnings:
             self.webhook.send_message(message)
 
     @staticmethod
-    def mute_user_warnings(user):
-        user = UserModel.get(UserModel.username == user)
+    def mute_user_warnings(user, subreddit):
+        user = UserModel.get(UserModel.username == user and UserModel.subreddit == subreddit)
         user.warnings_muted = True
         user.save()
