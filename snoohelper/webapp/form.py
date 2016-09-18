@@ -13,5 +13,6 @@ class MultiCheckboxField(SelectMultipleField):
 
 class ModulesSelectForm(Form):
     choices = [("usernotes", "Usernotes (requires 'modwiki' permission)"),
-               ("usertracking", "User offense tracker (requires 'modlog' permission)")]
+               ("usertracking", "User offense tracker (requires 'modlog' permission)"),
+               ("flairenforce", "Flair enforcement (requires 'modflair' and 'flair' permissions)")]
     modules_select = MultiCheckboxField('Select modules', choices=choices)

@@ -40,20 +40,23 @@ def slack_oauth_callback():
         try:
             slack_teams_config.add_team(response_json)
         except utils.TeamAlreadyExists:
-            return "Error: Your team has already installed RedditSlacker2."
+            return "Error: Your team has already installed SnooHelper."
 
         response = make_response(render_template('modules_select.html', title='Modules Select', form=form))
         response.set_cookie('slack_team_name', response_json['team_name'])
 
         return response
     else:
-        scopes = ['identity', 'mysubreddits', 'modposts', 'read', 'history', 'flair', 'modflair']
+        scopes = ['identity', 'mysubreddits', 'modposts', 'read', 'history']
         form_data = form.modules_select.data
 
         if "usernotes" in form_data:
             scopes.append('modwiki')
         if "usertracking" in form_data:
             scopes.append('modlog')
+        if "flairenforce" in form_data:
+            scopes.append('flair')
+            scopes.append('modflair')
 
         url = master_r.get_authorize_url('uniqueKey', scopes,
                                          refreshable=True)

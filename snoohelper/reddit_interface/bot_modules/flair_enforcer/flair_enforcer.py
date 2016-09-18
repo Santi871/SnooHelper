@@ -70,8 +70,7 @@ class UnflairedSubmission:
 
         self.comment = self.submission.add_comment(comment)
         self.comment.distinguish(sticky=True)
-        UnflairedSubmissionModel.create(submission_id=self.submission.id, comment_id=self.comment.id,
-                                        subreddit=self.submission.subreddit.display_name)
+        UnflairedSubmissionModel.create(submission_id=self.submission.id, comment_id=self.comment.id)
 
     def check_if_flaired(self):
         self.submission = self.r.get_submission(submission_id=self.submission.id)

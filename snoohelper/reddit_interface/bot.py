@@ -5,7 +5,6 @@ import praw
 import puni
 from peewee import OperationalError, IntegrityError
 from retrying import retry
-
 from snoohelper.reddit_interface import bot_threading
 from snoohelper.utils import utils as utils
 from .bot_modules.summary_generator import summary_generator
