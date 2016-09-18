@@ -12,10 +12,13 @@ class UserWarnings:
         self.ban_threshold = ban_threshold
         self.last_warned = dict()
 
-    def check_user(self, user, thing):
+    def check_user_offenses(self, user):
         message = utils.SlackResponse()
         send = False
         attachment = None
+
+        if isinstance(user, str):
+            user, _ = UserModel.get_or_create(username=user)
 
         if user.comment_removals > self.comment_threshold:
             attachment = message.add_attachment(title="Warning regarding user /u/" + user.username,
@@ -49,6 +52,9 @@ class UserWarnings:
             attachment.add_button("Mute warnings for this user", value="mutewarnings_" + user.username, style='danger')
             self.last_warned[user.username] = time.time()
             self.webhook.send_message(message)
+
+    def check_user_posts(self, thing):
+        user, _ = UserModel.get_or_create(username=thing.author.name)
 
         if user.tracked:
             message = utils.SlackResponse("New post by user /u/" + user.username)
