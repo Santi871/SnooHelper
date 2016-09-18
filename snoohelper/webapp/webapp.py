@@ -42,13 +42,14 @@ def slack_oauth_callback():
         except utils.TeamAlreadyExists:
             return "Error: Your team has already installed SnooHelper."
 
-        response = make_response(render_template('modules_select', title='Modules Select', form=form))
+        response = make_response(render_template('modules_select.html', title='Modules Select', form=form))
         response.set_cookie('slack_team_name', response_json['team_name'])
 
         return response
     else:
         scopes = ['identity', 'mysubreddits', 'modposts', 'read', 'history']
         form_data = form.modules_select.data
+        team_name = request.cookies.get('slack_team_name')
 
         if "usernotes" in form_data:
             scopes.append('modwiki')
@@ -57,6 +58,8 @@ def slack_oauth_callback():
         if "flairenforce" in form_data:
             scopes.append('flair')
             scopes.append('modflair')
+
+        slack_teams_config.set_modules(team_name, modules=form_data)
 
         url = master_r.get_authorize_url('uniqueKey', scopes,
                                          refreshable=True)

@@ -45,16 +45,16 @@ def team_from_team_name(team_name):
 
     for section in config.sections():
         if section == team_name:
-            usernotes = config.getboolean(section, 'usernotes')
+            modules = config[section]['modules'].split(',')
             team = SlackTeam(team_name=team_name, team_id=config[section]['team_id'],
                              access_token=config[section]['access_token'], subreddit=config[section]['subreddit'],
-                             webhook_url=config[section]['webhook_url'], usernotes=usernotes)
+                             webhook_url=config[section]['webhook_url'], modules=modules)
         break
 
     return team
 
 
-def slackresponse_from_original_message(original_message, delete_buttons=False, footer=None):
+def slackresponse_from_message(original_message, delete_buttons=False, footer=None, change_buttons=None):
 
     """Return a SlackResponse object from an original message dict"""
 
@@ -83,6 +83,10 @@ def slackresponse_from_original_message(original_message, delete_buttons=False, 
 
         if not delete_buttons:
             for button in attachment.get('actions', list()):
+                button_text = button.get('text')
+                if button_text in change_buttons:
+                    button = change_buttons[button_text].button_dict
+
                 confirm = button.get('confirm', dict())
                 duplicate_attachment.add_button(button.get('text'), value=button.get('value', None),
                                                 style=button.get('style', 'default'), confirm=confirm.get('text', None),
@@ -111,11 +115,11 @@ class SlackTeamsConfig:
             team_name = section
             team_id = self.config[section]['team_id']
             access_token = self.config[section]['access_token']
-            usernotes = self.config.getboolean(section, 'usernotes')
             subreddit = self.config.get(section, 'subreddit')
+            modules = self.config.get(section, 'modules').split(',')
 
             team = SlackTeam(team_name, team_id, access_token, subreddit=subreddit,
-                             webhook_url=self.config[section]['webhook_url'], usernotes=usernotes)
+                             webhook_url=self.config[section]['webhook_url'], modules=modules)
             teams.append(team)
 
         return teams
@@ -142,15 +146,24 @@ class SlackTeamsConfig:
         self.config[team_name]['access_token'] = access_token
         self.config[team_name]['webhook_url'] = webhook_url
         self.config[team_name]["subreddit"] = "False"
-        self.config[team_name]["usernotes"] = "False"
+        self.config[team_name]["modules"] = "False"
         with open(self.filename, 'w') as configfile:
             self.config.write(configfile)
-        team = SlackTeam(team_name, team_id, access_token, webhook_url)
+        team = SlackTeam(team_name, team_id, access_token, webhook_url, modules=None)
         self.teams.append(team)
 
-        self._create_oauth_file(team_name)
-
         return team
+
+    def set_modules(self, team_name, modules):
+        self.config[team_name]["modules"] = ','.join(modules)
+        with open(self.filename, 'w') as configfile:
+            self.config.write(configfile)
+
+        for team in self.teams:
+            if team.team_name == team_name:
+                team.modules = modules
+
+        self._create_oauth_file(team_name, modules)
 
     def set_subreddit(self, team_name, subreddit, usernotes=False):
 
@@ -171,7 +184,7 @@ class SlackTeamsConfig:
         return team
 
     @staticmethod
-    def _create_oauth_file(team_name):
+    def _create_oauth_file(team_name, modules):
 
         """Create and prepare a configfile to store the team's authorizing user Reddit access/refresh tokens"""
 
@@ -202,14 +215,23 @@ class SlackTeamsConfig:
             config.write(configfile)
 
 
+class IncomingWebhook:
+
+    def __init__(self, url):
+        self.url = url
+
+    def send_message(self, response):
+        requests.post(self.url, data=response.get_json())
+
+
 class SlackTeam:
 
-    def __init__(self, team_name, team_id, access_token, webhook_url, subreddit=None, usernotes=False):
+    def __init__(self, team_name, team_id, access_token, webhook_url, modules, subreddit=None):
         self.team_name = team_name
         self.team_id = team_id
         self.access_token = access_token
-        self.webhook_url = webhook_url
-        self.usernotes = usernotes
+        self.webhook = IncomingWebhook(webhook_url)
+        self.modules = modules
         if subreddit == 'False':
             self.subreddit = None
         else:

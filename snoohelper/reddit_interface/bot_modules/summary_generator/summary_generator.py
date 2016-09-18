@@ -1,12 +1,11 @@
 import datetime
 import math
 import os
-
 import matplotlib.pyplot as plt
 import numpy as np
 import praw.errors
 from imgurpython import ImgurClient
-from wordcloud import WordCloud
+from wordcloud import WordCloud, STOPWORDS
 from snoohelper.reddit_interface.database_models import UserModel
 from snoohelper.utils import utils as utils
 
@@ -15,7 +14,7 @@ class SummaryGenerator:
 
     """Module that generates user summaries. Requires 'read' and 'history' permissions."""
 
-    def __init__(self, subreddit, access_token, un=None, users_tracked=False):
+    def __init__(self, subreddit, access_token, spamcruncher=None, un=None, users_tracked=False):
 
         self.imgur = ImgurClient(utils.get_token("IMGUR_CLIENT_ID", 'credentials'),
                                  utils.get_token("IMGUR_CLIENT_SECRET", 'credentials'))
@@ -23,6 +22,7 @@ class SummaryGenerator:
         self.subreddit = subreddit
         self.un = un
         self.access_token = access_token
+        self.spamcruncher = spamcruncher
 
     def generate_quick_summary(self, r, username):
 
@@ -31,8 +31,8 @@ class SummaryGenerator:
         try:
             user = r.get_redditor(username, fetch=True)
         except praw.errors.NotFound:
-            response.add_attachment(response.add_attachment(fallback="Summary error.",
-                                                            title="Error: user not found.", color='danger'))
+            response.add_attachment(fallback="Summary error.",
+                                    title="Error: user not found.", color='danger')
             return response
 
         username = user.name
@@ -46,15 +46,26 @@ class SummaryGenerator:
             if len(notes):
                 last_note = str(notes[0].note)
 
-        attachment = response.add_attachment(title='Summary for /u/' + user.name,
+        attachment = response.add_attachment(title='Overview for /u/' + user.name,
                                 title_link="https://www.reddit.com/user/" + username,
                                 color='#3AA3E3', callback_id='user_' + username)
 
         attachment.add_field("Combined karma", combined_karma)
         attachment.add_field("Redditor since", account_creation)
 
+        if self.spamcruncher is not None:
+            results = self.spamcruncher.analyze_user(username)
+            spammer_likelihood = 'Low'
+
+            if results.spammer_likelihood > 100:
+                spammer_likelihood = 'Moderate'
+            if results.spammer_likelihood > 180:
+                spammer_likelihood = 'High'
+
+            attachment.add_field("Spammer likelihood", spammer_likelihood)
+
         if self.users_tracked:
-            user_track = UserModel.get(UserModel.username == username and UserModel.subreddit == self.subreddit)
+            user_track, _ = UserModel.get_or_create(username=username, subreddit=self.subreddit)
 
             if user_track is not None:
                 user_is_shadowbanned = "No"
@@ -96,7 +107,6 @@ class SummaryGenerator:
         return response
 
     def generate_expanded_summary(self, r, username, limit, request):
-
         response = utils.SlackResponse(replace_original=False)
         user = r.get_redditor(username, fetch=True)
 
@@ -127,9 +137,9 @@ class SummaryGenerator:
         karma_accumulated_total = []
 
         for comment in user.get_comments(limit=limit):
-
             displayname = comment.subreddit.display_name
             concatenated_comments += comment.body + " "
+            i += 1
 
             if displayname not in subreddit_names:
                 subreddit_names.append(displayname)
@@ -150,9 +160,6 @@ class SummaryGenerator:
 
             if displayname in blacklisted_subreddits:
                 troll_index += 2.5
-
-            i += 1
-
         total_comments_read = i
 
         if total_comments_read < 3:
@@ -262,12 +269,17 @@ class SummaryGenerator:
 
         plt.clf()
 
-        attachment = response.add_attachment(fallback="Summary for /u/" + username, image_url=link['link'],
-                                color=color)
+        attachment = response.add_attachment(fallback="Summary for /u/" + username,
+                                             title='Summary for /u/' + user.name,
+                                             title_link="https://www.reddit.com/user/" + username,
+                                             image_url=link['link'],
+                                             color=color)
         attachment.add_field("Troll likelihood", troll_likelihood)
         attachment.add_field("Total comments read", total_comments_read)
+        stopwords = set(STOPWORDS)
 
-        wordcloud = WordCloud(width=800, height=400, scale=2, background_color='white').generate(concatenated_comments)
+        wordcloud = WordCloud(width=800, height=400, scale=2, background_color='white',
+                              stopwords=stopwords).generate(concatenated_comments)
         filename = username + "_wordcloud.png"
         plt.imshow(wordcloud)
         plt.axis("off")
@@ -279,6 +291,6 @@ class SummaryGenerator:
         os.remove(path)
 
         plt.clf()
-        response.add_attachment(fallback="Wordcloud for /u/" + username, image_url=link['link'],
+        response.add_attachment(fallback="Wordcloud for /u/" + user.name, image_url=link['link'],
                                              color='good')
         request.delayed_response(response)

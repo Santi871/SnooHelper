@@ -17,6 +17,7 @@ class UserModel(BaseModel):
     bans = IntegerField(default=0)
     shadowbanned = BooleanField(default=False)
     tracked = BooleanField(default=False)
+    warnings_muted = BooleanField(default=False)
     subreddit = TextField()
 
 

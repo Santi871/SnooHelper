@@ -7,7 +7,7 @@ from peewee import OperationalError, IntegrityError
 from retrying import retry
 from snoohelper.reddit_interface import bot_threading
 from snoohelper.utils import utils as utils
-from .bot_modules.summary_generator import summary_generator
+from .bot_modules.summary_generator.summary_generator import SummaryGenerator
 from .bot_modules.spam_cruncher.spam_cruncher import SpamCruncher
 from .database_models import UserModel, AlreadyDoneModel, db
 
@@ -24,23 +24,25 @@ class RedditBot:
 
     """Primary Reddit interface - interacts with Reddit on behalf of the user/subreddit/Slack team"""
 
-    def __init__(self, team):
-        self.config = team
-        self.oauth_config_filename = team.team_name + "_oauth.ini"
-        self.subreddit_name = team.subreddit
+    def __init__(self, team_config):
+        self.team_config = team_config
+        self.oauth_config_filename = team_config.team_name + "_oauth.ini"
+        self.subreddit_name = team_config.subreddit
         self.already_done_helper = utils.AlreadyDoneHelper()
         handler = praw.handlers.MultiprocessHandler()
-        self.r = praw.Reddit(user_agent="windows:RedditSlacker2 0.1 by /u/santi871", handler=handler)
+        self.r = praw.Reddit(user_agent="windows:SnooHelper 0.1 by /u/santi871", handler=handler)
         self._authenticate()
         self.subreddit = self.r.get_subreddit(self.subreddit_name)
 
         self.un = None
-        if team.usernotes:
-            self.un = puni.UserNotes(self.r, self.subreddit)
-        self.summary_generator = summary_generator.SummaryGenerator(self.subreddit_name, self.config.access_token,
-                                                                    users_tracked=True)
-
+        if "usernotes" in team_config.modules:
+            # self.un = puni.UserNotes(self.r, self.subreddit)
+            pass
         self.spam_cruncher = SpamCruncher(filename='config.ini', section='spamcruncher')
+        self.spam_cruncher.set_reddit(self.r)
+        self.summary_generator = SummaryGenerator(self.subreddit_name, self.team_config.access_token,
+                                                  spamcruncher=self.spam_cruncher, users_tracked=True)
+
         # self.scan_modlog()
         # self.scan_submissions()
 
@@ -129,7 +131,7 @@ class RedditBot:
                     results = self.spam_cruncher.analyze_user(submission.author.name)
                     print(results.get_json(indent=4))
 
-            sleep(1)
+            sleep(60)
 
 
 
