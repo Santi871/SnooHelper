@@ -29,4 +29,5 @@ class UnflairedSubmissionModel(BaseModel):
 class AlreadyDoneModel(BaseModel):
     thing_id = TextField(unique=True)
     timestamp = TimestampField()
+    subreddit = TextField()
 

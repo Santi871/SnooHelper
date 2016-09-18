@@ -8,6 +8,7 @@ from retrying import retry
 from snoohelper.reddit_interface import bot_threading
 from snoohelper.utils import utils as utils
 from .bot_modules.summary_generator import summary_generator
+from .bot_modules.spam_cruncher.spam_cruncher import SpamCruncher
 from .database_models import UserModel, AlreadyDoneModel, db
 
 db.connect()
@@ -38,7 +39,9 @@ class RedditBot:
             self.un = puni.UserNotes(self.r, self.subreddit)
         self.summary_generator = summary_generator.SummaryGenerator(self.subreddit_name, self.config.access_token,
                                                                     users_tracked=True)
-        self.scan_modlog()
+
+        self.spam_cruncher = SpamCruncher(filename='config.ini', section='spamcruncher')
+        # self.scan_modlog()
         # self.scan_submissions()
 
     @retry(stop_max_attempt_number=4)
@@ -110,6 +113,7 @@ class RedditBot:
     @bot_threading.own_thread
     def scan_submissions(self, r, o):
         db.connect()
+        self.spam_cruncher.set_reddit(r)
         subreddit = r.get_subreddit(self.subreddit_name)
         while True:
             o.refresh()
@@ -120,7 +124,12 @@ class RedditBot:
                     self.already_done_helper.add(submission.id, self.subreddit_name)
                 except IntegrityError:
                     continue
-            sleep(60)
+
+                if not submission.is_self:
+                    results = self.spam_cruncher.analyze_user(submission.author.name)
+                    print(results.get_json(indent=4))
+
+            sleep(1)
 
 
 

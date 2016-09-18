@@ -97,8 +97,8 @@ class AnalysisResults:
 
         return retdict
 
-    def get_json(self):
-        return json.dumps(self.get_dict())
+    def get_json(self, indent=0):
+        return json.dumps(self.get_dict(), indent=indent)
 
 
 class UserAnalyzer:

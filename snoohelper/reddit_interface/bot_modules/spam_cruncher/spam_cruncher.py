@@ -1,5 +1,4 @@
 import praw
-from OAuth2Util import OAuth2Util
 import configparser
 from snoohelper.reddit_interface.bot_modules.spam_cruncher.user_analyzer import UserAnalyzer
 
@@ -13,7 +12,6 @@ class SCConfig:
         self.section = section
 
         self.debug_mode = None
-        self.user_agent = None
         self.subreddit = None
         self.domain_whitelist = None
         self.filter_below = None
@@ -25,7 +23,6 @@ class SCConfig:
 
         self.config.read(self.filename)
         self.debug_mode = self.config.get(self.section, "debug_mode")
-        self.user_agent = self.config.get(self.section, "user_agent")
         self.subreddit = self.config.get(self.section, "subreddit")
         self.filter_below = self.config.getint(self.section, "filter_below")
         self.get_comments = self.config.getboolean(self.section, "get_comments")
@@ -40,7 +37,7 @@ class SCConfig:
             whitelist += ','
         whitelist += domain + ","
 
-        self.config['bot']['domain_whitelist'] = whitelist
+        self.config[self.section]['domain_whitelist'] = whitelist
         with open(self.filename, 'w') as configfile:
             self.config.write(configfile)
 
@@ -49,29 +46,24 @@ class SCConfig:
 
 class SpamCruncher:
 
-    def __init__(self, config):
+    def __init__(self, filename, section='bot', r=None):
 
-        self.config = config
-        self.r = praw.Reddit(self.config.user_agent)
-
-        self._authenticate()
+        self.config = SCConfig(filename, section)
+        self.r = r
         self.user_analyzer = UserAnalyzer(self.r, self.config)
 
-    def _authenticate(self):
-
-        o = OAuth2Util(self.r, configfile=self.config.filename)
-        o.refresh(force=True)
-        self.r.config.api_request_delay = 1
-        print("Running...")
+    def set_reddit(self, r):
+        self.r = r
+        self.user_analyzer.r = r
 
     def analyze_stream(self, subreddit, filter_below=50, get_comments=False, verbose=False):
         stream = praw.helpers.comment_stream(self.r, subreddit, limit=5, verbosity=-1)
 
         for submission in stream:
             results = self.analyze_user(submission.author.name, get_comments=get_comments,
-                                        verbose=verbose, filter_below=filter_below)
+                                        verbose=verbose)
             if results.spammer_likelihood >= filter_below:
-                print(results.get_json())
+                print(results.get_json(indent=4))
                 print("Calculated spammer likelihood: " + str(results.spammer_likelihood))
                 print("Userpage: https://reddit.com/u/" + results.user.name)
 
@@ -81,7 +73,7 @@ class SpamCruncher:
             if verbose:
                 print("----------------------------")
 
-    def analyze_user(self, name, verbose=True, get_comments=False, filter_below=50):
+    def analyze_user(self, name, verbose=True, get_comments=False):
 
         try:
             results = self.user_analyzer.analyze_user(name, get_comments=get_comments, verbose=verbose)
