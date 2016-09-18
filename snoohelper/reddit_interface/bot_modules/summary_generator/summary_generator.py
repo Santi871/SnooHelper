@@ -6,7 +6,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import praw.errors
 from imgurpython import ImgurClient
-
+from wordcloud import WordCloud
 from snoohelper.reddit_interface.database_models import UserModel
 from snoohelper.utils import utils as utils
 
@@ -120,6 +120,7 @@ class SummaryGenerator:
         x = []
         y = []
         s = []
+        concatenated_comments = ""
 
         karma_accumulator = 0
         karma_accumulated = []
@@ -128,6 +129,7 @@ class SummaryGenerator:
         for comment in user.get_comments(limit=limit):
 
             displayname = comment.subreddit.display_name
+            concatenated_comments += comment.body + " "
 
             if displayname not in subreddit_names:
                 subreddit_names.append(displayname)
@@ -251,7 +253,7 @@ class SummaryGenerator:
         figure = plt.gcf()
         figure.set_size_inches(11, 12)
 
-        plt.savefig(filename)
+        plt.savefig(filename, bbox_inches='tight')
 
         path = os.getcwd() + "/" + filename
 
@@ -264,4 +266,19 @@ class SummaryGenerator:
                                 color=color)
         attachment.add_field("Troll likelihood", troll_likelihood)
         attachment.add_field("Total comments read", total_comments_read)
+
+        wordcloud = WordCloud(width=800, height=400, scale=2, background_color='white').generate(concatenated_comments)
+        filename = username + "_wordcloud.png"
+        plt.imshow(wordcloud)
+        plt.axis("off")
+        figure = plt.gcf()
+        figure.set_size_inches(13, 8)
+        plt.savefig(filename, bbox_inches='tight')
+        path = os.getcwd() + "/" + filename
+        link = self.imgur.upload_from_path(path, config=None, anon=True)
+        os.remove(path)
+
+        plt.clf()
+        response.add_attachment(fallback="Wordcloud for /u/" + username, image_url=link['link'],
+                                             color='good')
         request.delayed_response(response)

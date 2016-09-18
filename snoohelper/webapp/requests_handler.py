@@ -32,9 +32,11 @@ class RequestsHandler:
         args = slack_request.actions[0]['value'].split('_')[1:]
 
         if button_pressed == "summary":
-            response = None
+            original_message = utils.slackresponse_from_original_message(slack_request.original_message,
+                                                                         footer="Summary (%s) requested." % args[0])
+            original_message.set_replace_original(True)
+            response = original_message
             self.bots[slack_request.team_domain].expanded_user_summary(request=slack_request,
                                                                                   limit=int(args[0]),
                                                                                   username=args[1])
-
         return response

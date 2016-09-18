@@ -54,16 +54,23 @@ def team_from_team_name(team_name):
     return team
 
 
-def slackresponse_from_original_message(original_message, delete_buttons=False):
+def slackresponse_from_original_message(original_message, delete_buttons=False, footer=None):
+
+    """Return a SlackResponse object from an original message dict"""
+
     response = SlackResponse(text=original_message.get('text', ''))
     attachments = original_message.get('attachments', list())
 
     for attachment in attachments:
+        if footer is None:
+            footer = attachment.get('footer', None)
+        else:
+            footer = attachment.get('footer', '') + '\n' + footer
         duplicate_attachment = response.add_attachment(title=attachment.get('title', None),
                                                        title_link=attachment.get('title_link', None),
                                                        fallback=attachment.get('fallback', None),
                                                        color=attachment.get('color', None),
-                                                       footer=attachment.get('footer', None),
+                                                       footer=footer,
                                                        callback_id=attachment.get('callback_id', None),
                                                        image_url=attachment.get('image_url', None),
                                                        text=attachment.get('text', None),
@@ -286,6 +293,9 @@ class SlackAttachment:
         button = SlackButton(text, value, style, confirm, yes)
         self.attachment_dict['actions'].append(button.button_dict)
 
+    def set_footer(self, footer):
+        self.attachment_dict['footer'] = footer
+
 
 class SlackResponse:
 
@@ -303,6 +313,9 @@ class SlackResponse:
             self.response_dict['replace_original'] = False
 
         self.response_dict['response_type'] = response_type
+
+    def set_replace_original(self, value):
+        self.response_dict['replace_original'] = value
 
     def add_attachment(self, title=None, text=None, fallback=None, callback_id=None, color=None,
                        title_link=None, footer=None,
@@ -323,13 +336,13 @@ class SlackResponse:
         for attachment in self.attachments:
             self.response_dict['attachments'].append(attachment.attachment_dict)
 
-    def get_json(self):
+    def get_json(self, indent=0):
 
         """Returns the JSON form of the response, ready to be sent to Slack via POST data"""
 
         self._prepare()
 
-        return json.dumps(self.response_dict)
+        return json.dumps(self.response_dict, indent=indent)
 
     def get_dict(self):
 

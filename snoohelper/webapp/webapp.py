@@ -42,7 +42,7 @@ def slack_oauth_callback():
         except utils.TeamAlreadyExists:
             return "Error: Your team has already installed SnooHelper."
 
-        response = make_response(render_template('modules_select.html', title='Modules Select', form=form))
+        response = make_response(render_template('modules_select', title='Modules Select', form=form))
         response.set_cookie('slack_team_name', response_json['team_name'])
 
         return response
