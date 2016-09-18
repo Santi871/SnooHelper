@@ -4,7 +4,8 @@ from time import sleep
 import requests.exceptions
 import praw
 import OAuth2Util
-from peewee import SqliteDatabase
+from retrying import retry
+from peewee import OperationalError
 
 
 class CreateThread(threading.Thread):
@@ -41,6 +42,7 @@ class CreateThread(threading.Thread):
                 sleep(10)
 
 
+@retry(stop_max_attempt_number=4)
 def own_thread(func):
     def wrapped_f(*args, **kwargs):
         # Create a thread with the method we called

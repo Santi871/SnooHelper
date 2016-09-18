@@ -1,5 +1,5 @@
-from reddit_interface.bot import RedditBot
-import utils.utils as utils
+from snoohelper.reddit_interface.bot import RedditBot
+from snoohelper.utils import utils as utils
 
 
 class RequestsHandler:

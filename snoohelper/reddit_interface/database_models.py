@@ -1,6 +1,6 @@
 from peewee import IntegerField, TextField, SqliteDatabase, Model, BooleanField, TimestampField
 
-db = SqliteDatabase('redditslacker_master.db')
+db = SqliteDatabase('redditslacker_master.db', threadlocals=True, check_same_thread=False, timeout=30)
 
 
 class BaseModel(Model):
@@ -20,7 +20,14 @@ class UserModel(BaseModel):
     subreddit = TextField()
 
 
+class UnflairedSubmissionModel(BaseModel):
+    submission_id = TextField()
+    comment_id = TextField()
+    subreddit = TextField()
+
+
 class AlreadyDoneModel(BaseModel):
     thing_id = TextField(unique=True)
     timestamp = TimestampField()
     subreddit = TextField()
+

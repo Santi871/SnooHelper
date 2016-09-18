@@ -1,20 +1,24 @@
-from imgurpython import ImgurClient
+import datetime
+import math
+import os
+
 import matplotlib.pyplot as plt
 import numpy as np
-import utils.utils as utils
 import praw.errors
-from reddit_interface.database_models import UserModel
-import datetime
-import os
-import math
+from imgurpython import ImgurClient
+
+from snoohelper.reddit_interface.database_models import UserModel
+from snoohelper.utils import utils as utils
 
 
 class SummaryGenerator:
 
+    """Module that generates user summaries. Requires 'read' and 'history' permissions."""
+
     def __init__(self, subreddit, access_token, un=None, users_tracked=False):
 
         self.imgur = ImgurClient(utils.get_token("IMGUR_CLIENT_ID", 'credentials'),
-                     utils.get_token("IMGUR_CLIENT_SECRET", 'credentials'))
+                                 utils.get_token("IMGUR_CLIENT_SECRET", 'credentials'))
         self.users_tracked = users_tracked
         self.subreddit = subreddit
         self.un = un

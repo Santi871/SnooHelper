@@ -1,12 +1,14 @@
 import os
+import time
+
+import praw
 import requests
 from flask import Flask, request, Response, redirect, render_template, make_response
 from flask_sslify import SSLify
-import utils.utils as utils
-from .requests_handler import RequestsHandler
+
+from snoohelper.utils import utils as utils
 from .form import SubredditSelectForm, ModulesSelectForm
-import praw
-import time
+from .requests_handler import RequestsHandler
 
 SLACK_APP_ID = utils.get_token("SLACK_APP_ID", "credentials")
 SLACK_APP_SECRET = utils.get_token("SLACK_APP_SECRET", "credentials")
@@ -45,7 +47,7 @@ def slack_oauth_callback():
 
         return response
     else:
-        scopes = ['identity', 'mysubreddits', 'modposts', 'read', 'history']
+        scopes = ['identity', 'mysubreddits', 'modposts', 'read', 'history', 'flair', 'modflair']
         form_data = form.modules_select.data
 
         if "usernotes" in form_data:

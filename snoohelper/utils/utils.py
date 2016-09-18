@@ -1,8 +1,11 @@
-import requests
-import json
 import configparser
+import json
 import time
-from reddit_interface.database_models import AlreadyDoneModel
+
+import requests
+from peewee import OperationalError, InterfaceError
+
+from snoohelper.reddit_interface.database_models import AlreadyDoneModel
 
 
 def get_token(token_name, section, config_name='config.ini'):
@@ -175,7 +178,7 @@ class SlackTeamsConfig:
             pass
 
         # Add variable scopes form, not hardcoded
-        config.set('app', 'scope', 'identity,modlog,modposts,mysubreddits,read,history')
+        config.set('app', 'scope', 'identity,modlog,modposts,mysubreddits,read,history,modflair,flair')
         config.set('app', 'refreshable', 'True')
         config.set('app', 'app_key', REDDIT_APP_ID)
         config.set('app', 'app_secret', REDDIT_APP_SECRET)
@@ -440,13 +443,22 @@ class SlackRequest:
 class AlreadyDoneHelper:
 
     def __init__(self):
-        for item in AlreadyDoneModel.select():
-            if time.time() - item.timestamp.timestamp() > 7200:
-                item.delete_instance()
+        query = AlreadyDoneModel.delete().where((time.time() - AlreadyDoneModel.timestamp) > 7200)
+        num = query.execute()
+
+        if num:
+            print("AlreadyDoneHelper: cleaned up %s ids." % str(num))
 
     @staticmethod
     def add(thing_id, subreddit):
-        AlreadyDoneModel.create(thing_id=thing_id, timestamp=time.time(), subreddit=subreddit)
+
+        while True:
+            try:
+                AlreadyDoneModel.create(thing_id=thing_id, timestamp=time.time(), subreddit=subreddit)
+                break
+            except (OperationalError, InterfaceError):
+                print("Failed to write")
+                time.sleep(1)
 
 
 class TeamAlreadyExists(Exception):
