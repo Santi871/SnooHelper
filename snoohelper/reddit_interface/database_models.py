@@ -21,6 +21,15 @@ class UserModel(BaseModel):
     subreddit = TextField()
 
 
+class SubmissionModel(BaseModel):
+    submission_id = TextField()
+    sticky_cmt_id = TextField(null=True)
+    lock_type = TextField(null=True)
+    lock_remaining = TimestampField(null=True)
+    remove_remaining = TimestampField(null=True)
+    subreddit = TextField()
+
+
 class UnflairedSubmissionModel(BaseModel):
     submission_id = TextField()
     comment_id = TextField()
@@ -31,4 +40,3 @@ class AlreadyDoneModel(BaseModel):
     thing_id = TextField(unique=True)
     timestamp = TimestampField()
     subreddit = TextField()
-

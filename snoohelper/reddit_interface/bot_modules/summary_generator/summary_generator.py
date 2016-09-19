@@ -14,7 +14,7 @@ class SummaryGenerator:
 
     """Module that generates user summaries. Requires 'read' and 'history' permissions."""
 
-    def __init__(self, subreddit, access_token, spamcruncher=None, un=None, users_tracked=False):
+    def __init__(self, subreddit, access_token, spamcruncher=None, un=None, users_tracked=False, botbans=False):
 
         self.imgur = ImgurClient(utils.get_token("IMGUR_CLIENT_ID", 'credentials'),
                                  utils.get_token("IMGUR_CLIENT_SECRET", 'credentials'))
@@ -23,6 +23,7 @@ class SummaryGenerator:
         self.un = un
         self.access_token = access_token
         self.spamcruncher = spamcruncher
+        self.botbans = botbans
 
     def generate_quick_summary(self, r, username):
 
@@ -102,7 +103,9 @@ class SummaryGenerator:
         attachment.add_button("Summary (500)", "summary_500_" + username, style='primary')
         attachment.add_button("Summary (1000)", "summary_1000_" + username, style='primary')
         attachment.add_button("Track", "track_" + username)
-        attachment.add_button("Shadowban", "shadowban_" + username, style='danger')
+
+        if self.botbans:
+            attachment.add_button("Botban", "botban_" + username, style='danger')
 
         return response
 

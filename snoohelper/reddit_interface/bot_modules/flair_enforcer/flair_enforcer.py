@@ -8,11 +8,12 @@ class FlairEnforcer:
     """Module that enforces submission flair, keeps track of unflaired submissions, etc.
      Requires 'modflair' and 'flair' permissions"""
 
-    def __init__(self, r, subreddit):
+    def __init__(self, r, subreddit, grace_period=300):
         self.r = r
         self.subreddit = subreddit
         self.unflaired_submissions = list()
         self.flairs = None
+        self.grace_period = grace_period
 
     def _load_from_database(self):
         for unflaired_submission in UnflairedSubmissionModel.select():
@@ -39,9 +40,10 @@ class FlairEnforcer:
                     self.unflaired_submissions.remove(unflaired_submission)
 
     def add_submission(self, submission):
-        unflaired_submission_obj = UnflairedSubmission(self.r, submission, self.flairs)
-        unflaired_submission_obj.remove_and_comment()
-        self.unflaired_submissions.append(unflaired_submission_obj)
+        if datetime.datetime.utcnow().timestamp() - submission.created_utc > self.grace_period:
+            unflaired_submission_obj = UnflairedSubmission(self.r, submission, self.flairs)
+            unflaired_submission_obj.remove_and_comment()
+            self.unflaired_submissions.append(unflaired_submission_obj)
 
 
 class UnflairedSubmission:

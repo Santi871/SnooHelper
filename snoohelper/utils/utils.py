@@ -1,7 +1,7 @@
 import configparser
 import json
 import time
-
+from puni import Note
 import requests
 from peewee import OperationalError, InterfaceError
 
@@ -19,6 +19,23 @@ def get_token(token_name, section, config_name='config.ini'):
 
 REDDIT_APP_ID = get_token("REDDIT_APP_ID", "credentials")
 REDDIT_APP_SECRET = get_token("REDDIT_APP_SECRET", "credentials")
+
+
+def add_ban_note(un, action, unban=False):
+    if not action.description:
+        reason = "none provided"
+    else:
+        reason = action.description
+
+    if not unban:
+        n = Note(action.target_author, 'Banned, reason: ' + reason + ', length: ' + action.details,
+                 action.mod_id, '', 'ban')
+    elif unban and action.description != 'was temporary':
+        n = Note(action.target_author, 'Unbanned.',
+                 action.mod_id, '', 'spamwarning')
+    else:
+        return
+    un.add_note(n)
 
 
 def set_team_access_credentials(team_name, credentials):
