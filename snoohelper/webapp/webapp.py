@@ -1,11 +1,10 @@
 import os
 import time
-
 import praw
 import requests
 from flask import Flask, request, Response, redirect, render_template, make_response
 from flask_sslify import SSLify
-
+import logging
 from snoohelper.utils import utils as utils
 from .form import SubredditSelectForm, ModulesSelectForm
 from .requests_handler import RequestsHandler
@@ -19,6 +18,18 @@ REDDIT_REDIRECT_URI = utils.get_token("REDDIT_REDIRECT_URI", "credentials")
 os.environ["OAUTHLIB_INSECURE_TRANSPORT"] = '1'
 os.environ["OAUTHLIB_RELAX_TOKEN_SCOPE"] = '1'
 
+logging.basicConfig(level=logging.INFO,
+                    format='%(asctime)s %(name)-12s %(levelname)-8s %(message)s',
+                    datefmt='%m-%d %H:%M',
+                    filename='snoohelper_log.log',
+                    filemode='w')
+webapp_logger = logging.getLogger('webapp')
+console = logging.StreamHandler()
+console.setLevel(logging.INFO)
+formatter = logging.Formatter('%(name)-12s: %(levelname)-8s %(message)s')
+console.setFormatter(formatter)
+logging.getLogger('').addHandler(console)
+
 app = Flask(__name__, template_folder='../webapp/templates')
 app.config.from_object('config')
 sslify = SSLify(app)
@@ -26,6 +37,7 @@ slack_teams_config = utils.SlackTeamsConfig('teams.ini')
 handler = RequestsHandler(slack_teams_config)
 master_r = praw.Reddit("windows:RedditSlacker2 0.1 by /u/santi871", handler=praw.handlers.MultiprocessHandler())
 master_r.set_oauth_app_info(client_id=REDDIT_APP_ID, client_secret=REDDIT_APP_SECRET, redirect_uri=REDDIT_REDIRECT_URI)
+webapp_logger.info("Webapp initialization done.")
 
 
 @app.route("/slack/oauthcallback", methods=['POST', 'GET'])
@@ -44,6 +56,7 @@ def slack_oauth_callback():
 
         response = make_response(render_template('modules_select.html', title='Modules Select', form=form))
         response.set_cookie('slack_team_name', response_json['team_name'])
+        webapp_logger.info("New slack team added: " + response_json['team_name'])
 
         return response
     else:
@@ -64,6 +77,7 @@ def slack_oauth_callback():
         url = master_r.get_authorize_url('uniqueKey', scopes,
                                          refreshable=True)
         response = make_response(redirect(url, code=302))
+        webapp_logger.info("Reddit authentication URL generated for team: " + team_name)
 
         return response
 
@@ -93,6 +107,7 @@ def reddit_oauth_callback():
             moderated_subreddits = master_r.get_my_moderation()
             choices = [(subreddit.display_name, subreddit.display_name) for subreddit in moderated_subreddits]
             form.subreddit_select.choices = choices
+            webapp_logger.info("Subreddit selection screen generated for team: " + team_name)
             return render_template('subreddit_select.html', title='Select Subreddit', form=form)
 
     elif request.method == 'POST':
@@ -104,6 +119,7 @@ def reddit_oauth_callback():
         slack_teams_config.set_subreddit(team_name, subreddit)
         master_r.clear_authentication()
         handler.add_new_bot(team_name)
+        webapp_logger.info("Slack team completed installation flow: " + team_name)
 
         return "Successfully added Slack team and linked to subreddit. Enjoy!"
 
@@ -114,7 +130,7 @@ def command():
     if slack_request.is_valid:
 
         response = handler.handle_command(slack_request)
-
+        webapp_logger.info("Processed command execution from team: " + slack_request.team_domain)
         return Response(response=response.get_json(), mimetype="application/json")
 
     else:
@@ -128,7 +144,7 @@ def button_response():
     if slack_request.is_valid:
 
         response = handler.handle_button(slack_request)
-
+        webapp_logger.info("Processed button click from team: " + slack_request.team_domain)
         if response is None:
             return Response(status=200)
 

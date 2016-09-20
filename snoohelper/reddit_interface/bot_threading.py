@@ -27,18 +27,24 @@ class CreateThread(threading.Thread):
                 print("------------\nRan into an assertion error\nTrying again\n------------")
                 sleep(1)
                 print(traceback.format_exc())
+                self.obj.logger.warning("Ran into an assertion error.")
                 continue
             except (requests.exceptions.HTTPError, praw.errors.HTTPException):
+                self.obj.logger.warning("Ran into an HTTP error.")
                 sleep(2)
                 continue
             except requests.exceptions.ConnectionError:
                 print("Ran into a ConnectionError")
+                self.obj.logger.warning("Ran into a connection error.")
                 sleep(10)
                 continue
             except:
                 print("*Unhandled exception"
                       " in thread* '%s'." % self.name)
                 print(traceback.format_exc())
+                self.obj.logger.error("*Unhandled exception"
+                      " in thread* '%s'." % self.name)
+                self.obj.logger.error(traceback.format_exc())
                 sleep(10)
 
 
@@ -63,6 +69,7 @@ def own_thread(func):
             kwargs = {'r': r, 'o': o}
 
         o.refresh()
+        bot_obj.logger.info("Starting thread: " + str(func))
         thread = CreateThread(1, str(func) + " thread", args[0], func, kwargs)
         thread.start()
 

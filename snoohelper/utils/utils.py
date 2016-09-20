@@ -215,7 +215,7 @@ class SlackTeamsConfig:
             pass
 
         # Add variable scopes form, not hardcoded
-        config.set('app', 'scope', 'identity,modlog,modposts,mysubreddits,read,history,modflair,flair')
+        config.set('app', 'scope', 'identity,modlog,modposts,mysubreddits,read,history,modflair,modwiki,flair')
         config.set('app', 'refreshable', 'True')
         config.set('app', 'app_key', REDDIT_APP_ID)
         config.set('app', 'app_secret', REDDIT_APP_SECRET)
@@ -494,11 +494,12 @@ class SlackRequest:
 
 class AlreadyDoneHelper:
 
-    def __init__(self):
+    def __init__(self, logger):
         query = AlreadyDoneModel.delete().where((time.time() - AlreadyDoneModel.timestamp) > 7200)
         num = query.execute()
 
         if num:
+            logger.info("AlreadyDoneHelper: cleaned up %s ids." % str(num))
             print("AlreadyDoneHelper: cleaned up %s ids." % str(num))
 
     @staticmethod

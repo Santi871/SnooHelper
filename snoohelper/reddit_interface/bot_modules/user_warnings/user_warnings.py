@@ -22,7 +22,7 @@ class UserWarnings:
         if isinstance(user, str):
             user, _ = UserModel.get_or_create(username=user, subreddit=self.subreddit)
 
-        if user.comment_removals > self.comment_threshold:
+        if user.removed_comments > self.comment_threshold:
             attachment = message.add_attachment(title="Warning regarding user /u/" + user.username,
                                     title_link="https://reddit.com/u/" + user.username,
                                     color='#3AA3E3',
@@ -30,7 +30,7 @@ class UserWarnings:
                                     str(self.comment_threshold))
             send = True
 
-        if user.submission_removals > self.submission_threshold:
+        if user.removed_submissions > self.submission_threshold:
             attachment = message.add_attachment(title="Warning regarding user /u/" + user.username,
                                                  title_link="https://reddit.com/u/" + user.username,
                                                  color='#3AA3E3',
@@ -47,13 +47,13 @@ class UserWarnings:
                                                       str(self.ban_threshold))
             send = True
 
-        if not user.warnings_muted and send and time.time() - self.last_warned[user.username] > 86400:
-            attachment.add_button("Verify", value="verify", style='good')
+        if not user.warnings_muted and send and time.time() - self.last_warned.get(user.username, 0) > 86400:
+            attachment.add_button("Verify", value="verify", style='primary')
             attachment.add_button("Track", value="track_" + user.username)
 
             if self.botbans:
                 attachment.add_button("Botban", value="botban_" + user.username, style='danger')
-            attachment.add_button("Mute warnings for this user", value="mutewarnings_" + user.username, style='danger')
+            attachment.add_button("Mute user's warnings", value="mutewarnings_" + user.username, style='danger')
             self.last_warned[user.username] = time.time()
             self.webhook.send_message(message)
 
@@ -69,7 +69,7 @@ class UserWarnings:
                 title = thing.title
             attachment = message.add_attachment(title=title, title_link=thing.permalink, text=thing.body,
                                                 color='#3AA3E3')
-            attachment.add_button("Verify", value="verify", style='good')
+            attachment.add_button("Verify", value="verify", style='primary')
             attachment.add_button("Untrack", value="untrack_" + user.username)
 
             if self.botbans:
@@ -86,7 +86,7 @@ class UserWarnings:
             title = thing.title
         attachment = message.add_attachment(title=title, title_link=thing.permalink, text=thing.body,
                                             color='#3AA3E3')
-        attachment.add_button("Verify", value="verify", style='good')
+        attachment.add_button("Verify", value="verify", style='primary')
         attachment.add_button("Untrack", value="untrack_" + user.username)
 
         if self.botbans:

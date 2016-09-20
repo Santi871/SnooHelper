@@ -1,5 +1,5 @@
 from time import sleep, time
-
+import logging
 import OAuth2Util
 import praw
 import puni
@@ -17,7 +17,7 @@ from peewee import DoesNotExist
 db.connect()
 
 try:
-    db.create_tables(models=[UserModel, AlreadyDoneModel])
+    db.create_tables(models=[UserModel, AlreadyDoneModel, SubmissionModel])
 except OperationalError:
     pass
 db.close()
@@ -28,19 +28,23 @@ class RedditBot:
     """Primary Reddit interface - interacts with Reddit on behalf of the user/subreddit/Slack team"""
 
     def __init__(self, team_config):
+        self.logger = logging.getLogger('RedditBot of ' + team_config.team_name)
+        self.logger.info("Initializing RedditBot...")
         self.team_config = team_config
         self.oauth_config_filename = team_config.team_name + "_oauth.ini"
         self.subreddit_name = team_config.subreddit
-        self.already_done_helper = utils.AlreadyDoneHelper()
+        self.already_done_helper = utils.AlreadyDoneHelper(self.logger)
         handler = praw.handlers.MultiprocessHandler()
         self.r = praw.Reddit(user_agent="windows:SnooHelper 0.1 by /u/santi871", handler=handler)
         self._authenticate()
         self.subreddit = self.r.get_subreddit(self.subreddit_name)
         self.subreddit_name = self.subreddit.display_name
-        self.webhook = utils.IncomingWebhook(team_config.webhook_url)
+        self.webhook = team_config.webhook
         self._init_modules()
+        self.logger.info("Done initializing RedditBot.")
 
     def _init_modules(self):
+        self.logger.info("Initializing modules...")
         self.un = None
         self.user_warnings = None
         self.spam_cruncher = None
@@ -52,11 +56,13 @@ class RedditBot:
             self.botbans = True
 
         if "usernotes" in self.team_config.modules:
-            self.un = self.un = puni.UserNotes(self.r, self.subreddit)
+            # self.un = puni.UserNotes(self.r, self.subreddit)
+            self.un = None
 
         if "userwarnings" in self.team_config.modules:
             self.user_warnings = UserWarnings(self.subreddit_name, self.webhook, 10, 5, 1, botbans=self.botbans)
             users_tracked = True
+            self.user_warnings.check_user_offenses("Personanonpotata")
 
         if "spamwatch" in self.team_config.modules:
             self.spam_cruncher = SpamCruncher(filename='config.ini', section='spamcruncher')
@@ -74,15 +80,18 @@ class RedditBot:
         if self.user_warnings or self.botbans:
             self.scan_comments()
 
-        if "watchqueues" in self.team_config.modules:
-            self.monitor_queues()
+        if "watchqueue" in self.team_config.modules:
+            self.monitor_queue()
 
         self.summary_generator = SummaryGenerator(self.subreddit_name, self.team_config.access_token,
                                                   spamcruncher=self.spam_cruncher, users_tracked=users_tracked,
                                                   botbans=self.botbans)
 
+        self.logger.info("Done initializing modules.")
+
     @retry(stop_max_attempt_number=4)
     def _authenticate(self):
+        self.logger.info("Authenticating Reddit instance...")
         o = OAuth2Util.OAuth2Util(self.r, configfile=self.oauth_config_filename)
         o.refresh(force=True)
         self.r.config.api_request_delay = 1
@@ -175,13 +184,17 @@ class RedditBot:
 
     @bot_threading.own_thread
     def quick_user_summary(self, r, o, user, request):
+        self.logger.info("Generating user overview: " + user)
         o.refresh()
-        self.spam_cruncher.set_reddit(r)
+
+        if self.spam_cruncher is not None:
+            self.spam_cruncher.set_reddit(r)
         response = self.summary_generator.generate_quick_summary(r, username=user)
         request.delayed_response(response)
 
     @bot_threading.own_thread
     def expanded_user_summary(self, r, o, request, limit, username):
+        self.logger.info("Generating expanded user summary: " + username)
         response = utils.SlackResponse('Processing your request... please allow a few seconds.', replace_original=False)
         o.refresh()
         self.summary_generator.generate_expanded_summary(r, username, limit, request)
@@ -189,6 +202,7 @@ class RedditBot:
 
     @bot_threading.own_thread
     def scan_modlog(self, r, o):
+        self.logger.info("Starting scan_modlog thread...")
         subreddit = r.get_subreddit(self.subreddit_name)
         db.connect()
         relevant_actions = ('removecomment', 'removelink', 'approvelink', 'approvecomment', 'banuser', 'sticky')
@@ -227,13 +241,17 @@ class RedditBot:
                             item.target_fullname.startswith('t1'):
                         comment = r.get_info(thing_id=item.target_fullname)
                         submission = comment.submission
-                        SubmissionModel.create(submission_id=submission.id, sticky_cmt_id=comment.id,
-                                               subreddit=submission.subreddit.display_name)
+
+                        if "flair" not in comment.body:
+                            SubmissionModel.create(submission_id=submission.id, sticky_cmt_id=comment.id,
+                                                   subreddit=submission.subreddit.display_name)
                     user.save()
+                    self.user_warnings.check_user_offenses(user)
             sleep(30)
 
     @bot_threading.own_thread
     def scan_comments(self, r, o):
+        self.logger.info("Starting scan_comments thread...")
         db.connect()
         while True:
             o.refresh()
@@ -252,6 +270,7 @@ class RedditBot:
                     continue
 
                 if user.shadowbanned:
+                    self.logger.info("Removed comment by: " + user.username)
                     comment.remove()
                 if user.tracked:
                     self.user_warnings.send_warning(comment)
@@ -262,8 +281,11 @@ class RedditBot:
 
     @bot_threading.own_thread
     def scan_submissions(self, r, o):
+        self.logger.info("Starting scan_submissions thread...")
         db.connect()
-        self.spam_cruncher.set_reddit(r)
+
+        if self.spam_cruncher is not None:
+            self.spam_cruncher.set_reddit(r)
         subreddit = r.get_subreddit(self.subreddit_name)
         while True:
             o.refresh()
@@ -289,6 +311,7 @@ class RedditBot:
                     continue
 
                 if user.shadowbanned:
+                    self.logger.info("Removed submission by: " + user.username)
                     submission.remove()
                 if user.tracked:
                     self.user_warnings.send_warning(submission)
@@ -298,13 +321,12 @@ class RedditBot:
             sleep(60)
 
     @bot_threading.own_thread
-    def monitor_queues(self, r, o):
+    def monitor_queue(self, r, o):
+        self.logger.info("Starting monitor queues thread...")
         last_warned_modqueue = 0
-        last_warned_unmoderated = 0
         while True:
             o.refresh()
             modqueue = list(r.get_mod_queue(self.subreddit_name))
-            unmoderated = list(r.get_unmoderated(self.subreddit_name))
 
             if len(modqueue) > 30 and time() - last_warned_modqueue > 7200:
                 message = utils.SlackResponse()
@@ -312,14 +334,6 @@ class RedditBot:
                                        color='warning')
                 last_warned_modqueue = time()
                 self.webhook.send_message(message)
-            if len(unmoderated) > 30 and time() - last_warned_unmoderated > 7200:
-                message = utils.SlackResponse()
-                message.add_attachment(title='Warning: unmoderated queue has 30> items',
-                                       text='Please clean unmoderated queue.',
-                                       color='warning')
-                last_warned_unmoderated = time()
-                self.webhook.send_message(message)
-
             sleep(1800)
 
 
