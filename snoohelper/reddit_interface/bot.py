@@ -62,7 +62,6 @@ class RedditBot:
         if "userwarnings" in self.team_config.modules:
             self.user_warnings = UserWarnings(self.subreddit_name, self.webhook, 10, 5, 1, botbans=self.botbans)
             users_tracked = True
-            self.user_warnings.check_user_offenses("Personanonpotata")
 
         if "spamwatch" in self.team_config.modules:
             self.spam_cruncher = SpamCruncher(filename='config.ini', section='spamcruncher')
@@ -204,10 +203,10 @@ class RedditBot:
     def scan_modlog(self, r, o):
         self.logger.info("Starting scan_modlog thread...")
         subreddit = r.get_subreddit(self.subreddit_name)
-        db.connect()
         relevant_actions = ('removecomment', 'removelink', 'approvelink', 'approvecomment', 'banuser', 'sticky')
 
         while True:
+            db.connect()
             o.refresh()
             modlog = list(subreddit.get_mod_log(limit=20))
             new_items = 0
@@ -247,13 +246,14 @@ class RedditBot:
                                                    subreddit=submission.subreddit.display_name)
                     user.save()
                     self.user_warnings.check_user_offenses(user)
+            db.close()
             sleep(30)
 
     @bot_threading.own_thread
     def scan_comments(self, r, o):
         self.logger.info("Starting scan_comments thread...")
-        db.connect()
         while True:
+            db.connect()
             o.refresh()
             comments = r.get_comments(self.subreddit_name, limit=50, sort='new')
 
@@ -276,18 +276,17 @@ class RedditBot:
                     self.user_warnings.send_warning(comment)
 
                 self.user_warnings.check_user_offenses(user)
-
+            db.close()
             sleep(5)
 
     @bot_threading.own_thread
     def scan_submissions(self, r, o):
         self.logger.info("Starting scan_submissions thread...")
-        db.connect()
-
         if self.spam_cruncher is not None:
             self.spam_cruncher.set_reddit(r)
         subreddit = r.get_subreddit(self.subreddit_name)
         while True:
+            db.connect()
             o.refresh()
             submissions = subreddit.get_new(limit=50)
 
@@ -317,7 +316,7 @@ class RedditBot:
                     self.user_warnings.send_warning(submission)
 
                 self.user_warnings.check_user_offenses(user)
-
+            db.close()
             sleep(60)
 
     @bot_threading.own_thread
