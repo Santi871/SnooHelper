@@ -37,6 +37,7 @@ class SummaryGenerator:
             return response
 
         username = user.name
+        user_track, _ = UserModel.get_or_create(username=username, subreddit=self.subreddit)
 
         combined_karma = user.link_karma + user.comment_karma
         account_creation = str(datetime.datetime.fromtimestamp(user.created_utc))
@@ -66,8 +67,6 @@ class SummaryGenerator:
             attachment.add_field("Spammer likelihood", spammer_likelihood)
 
         if self.users_tracked:
-            user_track, _ = UserModel.get_or_create(username=username, subreddit=self.subreddit)
-
             if user_track is not None:
                 user_is_shadowbanned = "No"
                 user_is_tracked = "No"
@@ -102,10 +101,16 @@ class SummaryGenerator:
 
         attachment.add_button("Summary (500)", "summary_500_" + username, style='primary')
         attachment.add_button("Summary (1000)", "summary_1000_" + username, style='primary')
-        attachment.add_button("Track", "track_" + username)
 
-        if self.botbans:
+        if self.users_tracked and not user_track.tracked:
+            attachment.add_button("Track", "track_" + username)
+        elif self.users_tracked and user_track.tracked:
+            attachment.add_button("Untrack", "untrack_" + username)
+
+        if self.botbans and not user_track.shadowbanned:
             attachment.add_button("Botban", "botban_" + username, style='danger')
+        elif self.botbans and user_track.shadowbanned:
+            attachment.add_button("Unbotban", "unbotban_" + username, style='danger')
 
         return response
 

@@ -56,8 +56,7 @@ class RedditBot:
             self.botbans = True
 
         if "usernotes" in self.team_config.modules:
-            # self.un = puni.UserNotes(self.r, self.subreddit)
-            self.un = None
+            self.un = puni.UserNotes(self.r, self.subreddit)
 
         if "userwarnings" in self.team_config.modules:
             self.user_warnings = UserWarnings(self.subreddit_name, self.webhook, 10, 5, 1, botbans=self.botbans)
@@ -84,7 +83,7 @@ class RedditBot:
 
         self.summary_generator = SummaryGenerator(self.subreddit_name, self.team_config.access_token,
                                                   spamcruncher=self.spam_cruncher, users_tracked=users_tracked,
-                                                  botbans=self.botbans)
+                                                  botbans=self.botbans, un=self.un)
 
         self.logger.info("Done initializing modules.")
 

@@ -215,7 +215,8 @@ class SlackTeamsConfig:
             pass
 
         # Add variable scopes form, not hardcoded
-        config.set('app', 'scope', 'identity,modlog,modposts,mysubreddits,read,history,modflair,modwiki,flair')
+        config.set('app', 'scope', 'identity,modlog,modposts,mysubreddits,read,history,modflair,'
+                                   'wikiread,wikiedit,flair')
         config.set('app', 'refreshable', 'True')
         config.set('app', 'app_key', REDDIT_APP_ID)
         config.set('app', 'app_secret', REDDIT_APP_SECRET)

@@ -65,7 +65,8 @@ def slack_oauth_callback():
         team_name = request.cookies.get('slack_team_name')
 
         if "usernotes" in form_data:
-            scopes.append('modwiki')
+            scopes.append('wikiedit')
+            scopes.append('wikiread')
         if "usertracking" in form_data:
             scopes.append('modlog')
         if "flairenforce" in form_data:

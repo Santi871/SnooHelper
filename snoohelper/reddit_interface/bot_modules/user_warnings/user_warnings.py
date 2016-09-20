@@ -11,7 +11,6 @@ class UserWarnings:
         self.comment_threshold = comment_threshold
         self.submission_threshold = submission_threshold
         self.ban_threshold = ban_threshold
-        self.last_warned = dict()
         self.botbans = botbans
 
     def check_user_offenses(self, user):
@@ -47,14 +46,19 @@ class UserWarnings:
                                                       str(self.ban_threshold))
             send = True
 
-        if not user.warnings_muted and send and time.time() - self.last_warned.get(user.username, 0) > 86400:
+        if not user.warnings_muted and send and time.time() - user.last_warned.timestamp() > 86400:
             attachment.add_button("Verify", value="verify", style='primary')
-            attachment.add_button("Track", value="track_" + user.username)
+
+            if not user.tracked:
+                attachment.add_button("Track", value="track_" + user.username)
+            else:
+                attachment.add_button("Untrack", value="untrack_" + user.username)
 
             if self.botbans:
                 attachment.add_button("Botban", value="botban_" + user.username, style='danger')
             attachment.add_button("Mute user's warnings", value="mutewarnings_" + user.username, style='danger')
-            self.last_warned[user.username] = time.time()
+            user.last_warned = time.time()
+            user.save()
             self.webhook.send_message(message)
 
     def check_user_posts(self, thing):
@@ -72,12 +76,14 @@ class UserWarnings:
             attachment.add_button("Verify", value="verify", style='primary')
             attachment.add_button("Untrack", value="untrack_" + user.username)
 
-            if self.botbans:
+            if self.botbans and not user.shadowbanned:
                 attachment.add_button("Botban", value="botban_" + user.username, style='danger')
+            elif self.botbans and user.shadowbanned:
+                attachment.add_button("Unbotban", "unbotban_" + user.username, style='danger')
             self.webhook.send_message(message)
 
     def send_warning(self, thing):
-        user = thing.author.name
+        user, _ = UserModel.get_or_create(username=thing.author.name, subreddit=thing.subreddit.display_name)
         message = utils.SlackResponse("New post by user /u/" + user.username)
 
         try:
@@ -89,8 +95,11 @@ class UserWarnings:
         attachment.add_button("Verify", value="verify", style='primary')
         attachment.add_button("Untrack", value="untrack_" + user.username)
 
-        if self.botbans:
+        if self.botbans and not user.shadowbanned:
             attachment.add_button("Botban", value="botban_" + user.username, style='danger')
+        elif self.botbans and user.shadowbanned:
+            attachment.add_button("Unbotban", value="unbotban_" + user.username, style='danger')
+
         self.webhook.send_message(message)
 
     @staticmethod
