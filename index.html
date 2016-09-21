@@ -19,7 +19,6 @@
 
     <section class="main-content"><h1>
       <a id="user-content-header-1" class="anchor" href="#header-1" aria-hidden="true"><span class="octicon octicon-link"></span></a>What is SnooHelper?</h1>
-      <p>Text can be <strong>bold</strong>, <em>italic</em>, or <del>strikethrough</del>. <a href="https://github.com">Links</a> should be blue with no underlines (unless hovered over).</p>
 
       <p>
           SnooHelper is a Slack app meant for Reddit modteams who use Slack as a communication tool - it enables
@@ -31,12 +30,91 @@
           In a nutshell, SnooHelper will allow you to easily generate user summaries, track users' participation and
           offenses, enforce submission flair, detect link spam, controversial submissions, and much more.
       </p>
-        
+
         <p>
             The app is configurable - you are able to turn on just the features you want, giving it only the
             permissions you feel comfortable with. At the same time, it's open source, so you are able to see what
             is done with the permissions and data behind the scenes.
         </p>
+        <hr>
+        <h2><a id="user-content-header-1" class="anchor" href="#header-2" aria-hidden="true"><span class="octicon octicon-link"></span></a>Features</h2>
+        <p>
+            This is the full list of features offered by the application.
+        </p>
+        <p>
+            You may select which of these you want active in your subreddit and Slack team.
+        </p>
+
+        <h3>
+        <a id="user-content-header-2" class="anchor" href="#header-3" aria-hidden="true"><span class="octicon octicon-link"></span></a>User summaries</h3>
+
+        <p>
+            User summaries can be quickly generated on-the-fly with the <code>/user [username]</code> command. They
+            include an overview of their account, history of offenses in the subreddit and latest usernote. The
+            expanded summary feature can be used to analyze their latest 500 or 1000 comments, generating a graph of
+            their reddit activity and a wordcloud of their comments.
+        </p>
+
+        <h3>
+        <a id="user-content-header-2" class="anchor" href="#header-3" aria-hidden="true"><span class="octicon octicon-link"></span></a>User tracking</h3>
+        <p>
+            SnooHelper will, if enabled, track users' removals, approvals, and bans. The team will be automatically
+            warned when a user has a large number of removed posts, or has been banned more than once.
+        </p>
+
+        <p>
+            Additionally, manual user tracking is available: flagging a user for tracking means the team will be
+            notified every time the user makes submission or comment.
+        </p>
+
+        <h3>
+        <a id="user-content-header-2" class="anchor" href="#header-3" aria-hidden="true"><span class="octicon octicon-link"></span></a>Easy botbans</h3>
+
+        <p>
+            If your subreddit uses botbans, you are probably familiar with the fact they are cumbersome to apply: one
+            must go to AutoModerator's configuration page and manually add the user's name to a list.
+        </p>
+        <p>
+            With SnooHelper, botbanning or unbotbanning an user is as simple as clicking a button or executing a command.
+            Further, a toolbox usernote is automatically added to easily keep track of them.
+        </p>
+
+        <h3>
+        <a id="user-content-header-2" class="anchor" href="#header-3" aria-hidden="true"><span class="octicon octicon-link"></span></a>Flair enforcement</h3>
+        <p>
+            If your subreddit enforces submission flair, SnooHelper will automatically remove unflaired submissions
+            and prompt their authors to flair them with a list of available flairs.
+            </p>
+
+        <p>
+            Users can flair their submission
+            by posting a comment consisting of the flair they want. Unflaired submissions will be periodically checked
+            and automatically approved should they be flaired. Zero moderator intervention required.
+        </p>
+
+        <h3>
+        <a id="user-content-header-2" class="anchor" href="#header-3" aria-hidden="true"><span class="octicon octicon-link"></span></a>Temporary locks and removals</h3>
+        <p>
+            Sometimes a submission needs to be temporarily locked or removed because it's getting a lot of rule-breaking
+            comments. If a submission is flagged for a temporary lock or removal, SnooHelper will take care of
+            unlocking it or approving it for you.
+        </p>
+
+        <h3>
+        <a id="user-content-header-2" class="anchor" href="#header-3" aria-hidden="true"><span class="octicon octicon-link"></span></a>Link spam detection</h3>
+        <p>
+            If enabled, the application will analyze the author of every submission made to your subreddit, and
+            notify the team if it determines they are likely to be a spammer.
+        </p>
+
+        <h3>
+        <a id="user-content-header-2" class="anchor" href="#header-3" aria-hidden="true"><span class="octicon octicon-link"></span></a>Minor features</h3>
+             <ul class="task-list">
+          <li>Unmoderated queue or modqueue size warnings: be notified when these queues exceed 30 items.</li>
+          <li>Sticky comment replies removals: automatically remove replies to sticky comments.</li>
+          <li>Controversial or quickly rising submission detection: be notified when a submission is a hot topic.</li>
+          </ul>
+
 
       <blockquote>
       <p>There should be no margin above this first sentence.</p>
@@ -50,7 +128,8 @@
       <a id="user-content-header-1" class="anchor" href="#header-1" aria-hidden="true"><span class="octicon octicon-link"></span></a>Header 1</h1>
 
       <p>This is a normal paragraph following a header. Bacon ipsum dolor sit amet t-bone doner shank drumstick, pork belly porchetta chuck sausage brisket ham hock rump pig. Chuck kielbasa leberkas, pork bresaola ham hock filet mignon cow shoulder short ribs biltong.</p>
-      <h2>
+      <p>Text can be <strong>bold</strong>, <em>italic</em>, or <del>strikethrough</del>. <a href="https://github.com">Links</a> should be blue with no underlines (unless hovered over).</p>
+        <h2>
       <a id="user-content-header-2" class="anchor" href="#header-2" aria-hidden="true"><span class="octicon octicon-link"></span></a>Header 2</h2>
 
       <blockquote>
