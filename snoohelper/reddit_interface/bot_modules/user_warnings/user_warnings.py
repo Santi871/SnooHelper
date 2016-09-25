@@ -54,9 +54,12 @@ class UserWarnings:
             else:
                 attachment.add_button("Untrack", value="untrack_" + user.username)
 
-            if self.botbans:
+            if self.botbans and not user.shadowbanned:
                 attachment.add_button("Botban", value="botban_" + user.username, style='danger')
+            elif self.botbans and user.shadowbanned:
+                attachment.add_button("Unbotban", value="unbotban_" + user.username, style='danger')
             attachment.add_button("Mute user's warnings", value="mutewarnings_" + user.username, style='danger')
+
             user.last_warned = time.time()
             user.save()
             self.webhook.send_message(message)

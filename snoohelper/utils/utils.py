@@ -101,8 +101,10 @@ def slackresponse_from_message(original_message, delete_buttons=False, footer=No
         if not delete_buttons:
             for button in attachment.get('actions', list()):
                 button_text = button.get('text')
-                if button_text in change_buttons:
-                    button = change_buttons[button_text].button_dict
+
+                if change_buttons is not None:
+                    if button_text in change_buttons:
+                        button = change_buttons[button_text].button_dict
 
                 confirm = button.get('confirm', dict())
                 duplicate_attachment.add_button(button.get('text'), value=button.get('value', None),

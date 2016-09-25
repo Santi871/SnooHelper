@@ -94,7 +94,7 @@ class RedditBot:
         o.refresh(force=True)
         self.r.config.api_request_delay = 1
 
-    def botban(self, user, subreddit, author, replace_original=False):
+    def botban(self, user, author, replace_original=False):
         response = utils.SlackResponse(replace_original=replace_original)
         try:
             redditor = self.r.get_redditor(user_name=user)
@@ -103,7 +103,7 @@ class RedditBot:
             return response
 
         if self.botbans:
-            user, _ = UserModel.get_or_create(username=redditor.name, subreddit=subreddit)
+            user, _ = UserModel.get_or_create(username=redditor.name, subreddit=self.subreddit_name)
             if not user.shadowbanned:
                 user.shadowbanned = True
                 user.save()
