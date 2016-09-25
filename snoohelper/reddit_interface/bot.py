@@ -259,6 +259,7 @@ class RedditBot:
             db.connect()
             o.refresh()
             comments = r.get_comments(self.subreddit_name, limit=50, sort='new')
+            sticky_comments_ids = ["t1_" + submission.sticky_cmt_id for submission in SubmissionModel.select()]
 
             for comment in comments:
                 try:
@@ -277,6 +278,9 @@ class RedditBot:
                     comment.remove()
                 if user.tracked:
                     self.user_warnings.send_warning(comment)
+                if comment.parent_id in sticky_comments_ids:
+                    self.logger.info("Removed reply to sticky comment by: " + user.username)
+                    comment.remove()
 
                 self.user_warnings.check_user_offenses(user)
             db.close()
