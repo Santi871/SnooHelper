@@ -30,7 +30,7 @@ class RequestsHandler:
         response = utils.SlackResponse("Processing your request... please allow a few seconds.", replace_original=False)
         button_pressed = slack_request.actions[0]['value'].split('_')[0]
         args = slack_request.actions[0]['value'].split('_')[1:]
-        target_user = '_'.join(args[1:])
+        target_user = '_'.join(args)
 
         if button_pressed == "summary":
             original_message = utils.slackresponse_from_message(slack_request.original_message,
@@ -48,5 +48,10 @@ class RequestsHandler:
             response = self.bots[slack_request.team_domain].botban(user=target_user, author=slack_request.user)
         elif button_pressed == "unbotban":
             response = self.bots[slack_request.team_domain].unbotban(user=target_user, author=slack_request.user)
+        elif button_pressed == "verify":
+            original_message = utils.slackresponse_from_message(slack_request.original_message,
+                                                                delete_buttons=['Verify'],
+                                                                footer="Verified by @" + slack_request.user)
+            response = original_message
 
         return response

@@ -71,13 +71,15 @@ def team_from_team_name(team_name):
     return team
 
 
-def slackresponse_from_message(original_message, delete_buttons=False, footer=None, change_buttons=None):
+def slackresponse_from_message(original_message, delete_buttons=None, footer=None, change_buttons=None):
 
     """Return a SlackResponse object from an original message dict"""
 
     response = SlackResponse(text=original_message.get('text', ''))
     attachments = original_message.get('attachments', list())
 
+    if delete_buttons is None:
+        delete_buttons = list()
     for attachment in attachments:
         if footer is None:
             footer = attachment.get('footer', None)
@@ -98,8 +100,8 @@ def slackresponse_from_message(original_message, delete_buttons=False, footer=No
             duplicate_attachment.add_field(title=field.get('title', None), value=field.get('value', None),
                                            short=field.get('short', False))
 
-        if not delete_buttons:
-            for button in attachment.get('actions', list()):
+        for button in attachment.get('actions', list()):
+            if button.get("text") not in delete_buttons:
                 button_text = button.get('text')
 
                 if change_buttons is not None:

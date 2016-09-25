@@ -107,9 +107,11 @@ class RedditBot:
             if not user.shadowbanned:
                 user.shadowbanned = True
                 user.save()
-                attachment = response.add_attachment(title="User /u/%s has been botbanned.",
-                                        title_link="https://reddit.com/u/" + user.username, color='good')
+                attachment = response.add_attachment(title="User /u/%s has been botbanned." % user.username,
+                                        title_link="https://reddit.com/u/" + user.username, color='good',
+                                                     callback_id="botban")
                 attachment.add_field("Author", author)
+                attachment.add_button("Undo", "unbotban_" + user.username)
             else:
                 response.add_attachment(text='Error: user is already botbanned', color='danger')
         else:
@@ -129,9 +131,11 @@ class RedditBot:
             if user.shadowbanned:
                 user.shadowbanned = False
                 user.save()
-                attachment = response.add_attachment(title="User /u/%s has been unbotbanned.",
-                                                     title_link="https://reddit.com/u/" + user.username, color='good')
+                attachment = response.add_attachment(title="User /u/%s has been unbotbanned." % user.username,
+                                                     title_link="https://reddit.com/u/" + user.username, color='good',
+                                                     callback_id="unbotban")
                 attachment.add_field("Author", author)
+                attachment.add_button("Undo", "botban_" + user.username)
             else:
                 response.add_attachment(text='Error: user is not botbanned', color='danger')
         else:
@@ -151,7 +155,7 @@ class RedditBot:
             if not user.tracked:
                 user.tracked = True
                 user.save()
-                response.add_attachment(title="User /u/%s has been marked for tracking.",
+                response.add_attachment(title="User /u/%s has been marked for tracking." % user.username,
                                         title_link="https://reddit.com/u/" + user.username, color='good')
             else:
                 response.add_attachment(text='Error: user is already being tracked', color='danger')
@@ -170,9 +174,9 @@ class RedditBot:
         if self.user_warnings is not None:
             user, _ = UserModel.get_or_create(username=redditor.name, subreddit=self.subreddit_name)
             if user.tracked:
-                user.tracked = True
+                user.tracked = False
                 user.save()
-                response.add_attachment(title="Ceasing to track user /u/%s.",
+                response.add_attachment(title="Ceasing to track user /u/%s." % user.username,
                                         title_link="https://reddit.com/u/" + user.username, color='good')
             else:
                 response.add_attachment(text='Error: user is not being tracked', color='danger')
@@ -263,7 +267,7 @@ class RedditBot:
                     continue
 
                 try:
-                    user = UserModel.get(UserModel.username == comment.author.name and
+                    user = UserModel.get(UserModel.username == comment.author.name,
                                          UserModel.subreddit == comment.subreddit.display_name)
                 except DoesNotExist:
                     continue

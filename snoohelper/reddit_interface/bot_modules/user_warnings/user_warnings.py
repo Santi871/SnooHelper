@@ -26,7 +26,7 @@ class UserWarnings:
                                     title_link="https://reddit.com/u/" + user.username,
                                     color='#3AA3E3',
                                     text="User has had %s> comments removed. Please check profile history." %
-                                    str(self.comment_threshold))
+                                    str(self.comment_threshold), callback_id="check_user_offenses")
             send = True
 
         if user.removed_submissions > self.submission_threshold:
@@ -35,7 +35,7 @@ class UserWarnings:
                                                  color='#3AA3E3',
                                                  text="User has had %s> submissions removed. Please check profile"
                                                       " history." %
-                                                      str(self.submission_threshold))
+                                                      str(self.submission_threshold), callback_id="check_user_offenses")
             send = True
 
         if user.bans > self.ban_threshold:
@@ -43,7 +43,7 @@ class UserWarnings:
                                                  title_link="https://reddit.com/u/" + user.username,
                                                  color='#3AA3E3',
                                                  text="User has been banned %s> times. Please check profile history." %
-                                                      str(self.ban_threshold))
+                                                      str(self.ban_threshold), callback_id="check_user_offenses")
             send = True
 
         if not user.warnings_muted and send and time.time() - user.last_warned.timestamp() > 86400:
@@ -75,7 +75,7 @@ class UserWarnings:
             except AttributeError:
                 title = thing.title
             attachment = message.add_attachment(title=title, title_link=thing.permalink, text=thing.body,
-                                                color='#3AA3E3')
+                                                color='#3AA3E3', callback_id="check_user_posts")
             attachment.add_button("Verify", value="verify", style='primary')
             attachment.add_button("Untrack", value="untrack_" + user.username)
 
@@ -94,7 +94,7 @@ class UserWarnings:
         except AttributeError:
             title = thing.title
         attachment = message.add_attachment(title=title, title_link=thing.permalink, text=thing.body,
-                                            color='#3AA3E3')
+                                            color='#3AA3E3', callback_id="send_warning")
         attachment.add_button("Verify", value="verify", style='primary')
         attachment.add_button("Untrack", value="untrack_" + user.username)
 
