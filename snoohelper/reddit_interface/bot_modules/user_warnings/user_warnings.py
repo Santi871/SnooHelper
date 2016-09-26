@@ -24,7 +24,7 @@ class UserWarnings:
         if user.removed_comments > self.comment_threshold:
             attachment = message.add_attachment(title="Warning regarding user /u/" + user.username,
                                     title_link="https://reddit.com/u/" + user.username,
-                                    color='#3AA3E3',
+                                    color='#5c96ab',
                                     text="User has had %s> comments removed. Please check profile history." %
                                     str(self.comment_threshold), callback_id="check_user_offenses")
             send = True
@@ -32,7 +32,7 @@ class UserWarnings:
         if user.removed_submissions > self.submission_threshold:
             attachment = message.add_attachment(title="Warning regarding user /u/" + user.username,
                                                  title_link="https://reddit.com/u/" + user.username,
-                                                 color='#3AA3E3',
+                                                 color='#5c96ab',
                                                  text="User has had %s> submissions removed. Please check profile"
                                                       " history." %
                                                       str(self.submission_threshold), callback_id="check_user_offenses")
@@ -41,7 +41,7 @@ class UserWarnings:
         if user.bans > self.ban_threshold:
             attachment = message.add_attachment(title="Warning regarding user /u/" + user.username,
                                                  title_link="https://reddit.com/u/" + user.username,
-                                                 color='#3AA3E3',
+                                                 color='#5c96ab',
                                                  text="User has been banned %s> times. Please check profile history." %
                                                       str(self.ban_threshold), callback_id="check_user_offenses")
             send = True
@@ -75,7 +75,7 @@ class UserWarnings:
             except AttributeError:
                 title = thing.title
             attachment = message.add_attachment(title=title, title_link=thing.permalink, text=thing.body,
-                                                color='#3AA3E3', callback_id="check_user_posts")
+                                                color='#5c96ab', callback_id="check_user_posts")
             attachment.add_button("Verify", value="verify", style='primary')
             attachment.add_button("Untrack", value="untrack_" + user.username)
 
@@ -94,7 +94,7 @@ class UserWarnings:
         except AttributeError:
             title = thing.title
         attachment = message.add_attachment(title=title, title_link=thing.permalink, text=thing.body,
-                                            color='#3AA3E3', callback_id="send_warning")
+                                            color='#5c96ab', callback_id="send_warning")
         attachment.add_button("Verify", value="verify", style='primary')
         attachment.add_button("Untrack", value="untrack_" + user.username)
 

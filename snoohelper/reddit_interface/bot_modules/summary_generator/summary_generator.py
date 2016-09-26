@@ -50,7 +50,7 @@ class SummaryGenerator:
 
         attachment = response.add_attachment(title='Overview for /u/' + user.name,
                                 title_link="https://www.reddit.com/user/" + username,
-                                color='#3AA3E3', callback_id='user_' + username)
+                                color='#5c96ab', callback_id='user_' + username)
 
         attachment.add_field("Combined karma", combined_karma)
         attachment.add_field("Redditor since", account_creation)
