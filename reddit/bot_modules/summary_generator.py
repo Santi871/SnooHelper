@@ -167,9 +167,7 @@ class SummaryGenerator:
         total_comments_read = 0
 
         for comment in user.comments.new(limit=limit):
-            print('comment')
             if comment.distinguished != 'moderator':
-                print('in')
                 displayname = comment.subreddit.display_name
                 concatenated_comments += comment.body + " "
                 i += 1

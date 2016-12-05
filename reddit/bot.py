@@ -279,9 +279,12 @@ class SnooHelperBot:
                     except praw.exceptions.PRAWException as e:
                         print("PRAW Exception, " + str(e))
 
-                    if "flair" not in comment.body:
-                        SubmissionModel.create(submission_id=submission.id, sticky_cmt_id=comment.id,
-                                               subreddit=submission.subreddit.display_name)
+                    try:
+                        if "flair" not in comment.body:
+                            SubmissionModel.create(submission_id=submission.id, sticky_cmt_id=comment.id,
+                                                   subreddit=submission.subreddit.display_name)
+                    except (TypeError, praw.exceptions.PRAWException) as e:
+                        print("PRAW Exception, " + str(e))
 
                 elif item.action == 'banuser':
                     try:
