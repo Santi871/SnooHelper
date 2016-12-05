@@ -46,7 +46,12 @@ class UserWarnings:
                                                       str(self.ban_threshold), callback_id="check_user_offenses")
             send = True
 
-        if not user.warnings_muted and send and time.time() - user.last_warned.timestamp() > 86400:
+        try:
+            last_warned_ts = user.last_warned.timestamp()
+        except AttributeError:
+            last_warned_ts = 0
+
+        if not user.warnings_muted and send and time.time() - last_warned_ts > 86400:
             attachment.add_button("Verify", value="verify", style='primary')
 
             if not user.tracked:

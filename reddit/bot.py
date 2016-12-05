@@ -34,7 +34,6 @@ class SnooHelperBot:
     def __init__(self, team):
         self.config = team
         self.webhook = self.config.webhook
-        print("reddit init")
 
         if self.config.reddit_refresh_token:
             self.r = praw.Reddit(user_agent="Snoohelper 0.1 by /u/Santi871",

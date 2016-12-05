@@ -8,9 +8,13 @@ class RequestsHandler:
 
     def handle_command(self, slack_request):
         response = utils.slack.SlackResponse("Processing your request... please allow a few seconds.")
+        user = slack_request.command_args[0]
         if slack_request.command == '/userz':
-            self.teams[slack_request.team_domain].bot.quick_user_summary(user=slack_request.command_args[0],
+            self.teams[slack_request.team_domain].bot.quick_user_summary(user=user,
                                                                          request=slack_request)
+        elif slack_request.command == '/botban':
+            response = self.teams[slack_request.team_domain].bot.botban(user=user, author=slack_request.user)
+
         return response
 
     def handle_button(self, slack_request):
