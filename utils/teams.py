@@ -1,12 +1,13 @@
 import configparser
 from .slack import IncomingWebhook
 from reddit.bot import SnooHelperBot
+import utils
 
 
 class SlackTeam:
 
     def __init__(self, filename, team_name, team_id, access_token, webhook_url, subreddit, modules, scopes,
-                 reddit_refresh_token):
+                 reddit_refresh_token, sleep=60.0):
         config = configparser.ConfigParser()
         self.filename = filename
         self.team_name = team_name
@@ -18,6 +19,7 @@ class SlackTeam:
         self.modules = modules
         self.scopes = scopes
         self.reddit_refresh_token = reddit_refresh_token
+        self.sleep = sleep
         self.bot = None
         config.read(filename)
 
@@ -33,6 +35,7 @@ class SlackTeam:
         config[team_name]["modules"] = modules
         config[team_name]["scopes"] = scopes
         config[team_name]["reddit_refresh_token"] = reddit_refresh_token
+        config[team_name]["sleep"] = str(self.sleep)
 
         with open(filename, 'w') as configfile:
             config.write(configfile)
@@ -40,7 +43,7 @@ class SlackTeam:
     def set(self, attribute, value):
         config = configparser.ConfigParser()
         config.read(self.filename)
-        config[self.team_name][attribute] = value
+        config[self.team_name][attribute] = str(value)
         setattr(self, attribute, value)
         with open(self.filename, 'w') as configfile:
             config.write(configfile)
@@ -63,15 +66,19 @@ class SlackTeamsController:
             modules = config[section]["modules"]
             scopes = config[section]["scopes"]
             reddit_refresh_token = config[section]["reddit_refresh_token"]
+            sleep = float(config[section]["sleep"])
 
             if team_id and access_token and webhook_url and subreddit and modules and scopes and reddit_refresh_token:
                 team = SlackTeam(self.filename, section, team_id, access_token, webhook_url, subreddit, modules,
-                                 scopes, reddit_refresh_token)
+                                 scopes, reddit_refresh_token, sleep=sleep)
                 self.teams[section] = team
                 self.add_bot(section)
 
     def add_bot(self, team_name):
         self.teams[team_name].bot = SnooHelperBot(self.teams[team_name])
+        subscribers = self.teams[team_name].bot.subreddit.subscribers
+        sleep = utils.reddit.calculate_sleep(subscribers)
+        self.teams[team_name].set("sleep", sleep)
 
     def add_team(self, slack_payload):
         team_name = slack_payload['team_name']

@@ -55,7 +55,7 @@ def slack_oauth_callback():
         if "usernotes" in form_data:
             scopes.append('wikiedit')
             scopes.append('wikiread')
-        if "usertracking" in form_data:
+        if "userwarnings" in form_data:
             scopes.append('modlog')
         if "flairenforce" in form_data:
             scopes.append('flair')
@@ -111,7 +111,11 @@ def reddit_oauth_callback():
             return "There was an error processing your request, please try again."
 
         slack_teams_controller.teams[team_name].set("subreddit", subreddit)
-        slack_teams_controller.teams[team_name].bot.halt = True
+        try:
+            slack_teams_controller.teams[team_name].bot.halt = True
+        except (AttributeError, KeyError):
+            pass
+
         slack_teams_controller.add_bot(team_name)
 
         return "Successfully added Slack team and linked to subreddit. Enjoy!"

@@ -44,7 +44,6 @@ class FlairEnforcer:
         dt = datetime.datetime.utcfromtimestamp(submission.created_utc)
 
         if (datetime.datetime.utcnow() - dt).total_seconds() > self.grace_period:
-            print("in")
             unflaired_submission_obj = UnflairedSubmission(self.r, submission)
             unflaired_submission_obj.remove_and_comment()
             self.unflaired_submissions.append(unflaired_submission_obj)
@@ -98,7 +97,8 @@ class UnflairedSubmission:
                 if len(body) < 4:
                     for word in body:
                         word = word.lower()
-                        word = word.strip(["'", '"'])
+                        word = word.strip("'")
+                        word = word.strip('"')
 
                         for tup in self.flairs:
                             if word == tup[0].lower() and comment.author.name == self.submission.author.name:
@@ -110,8 +110,7 @@ class UnflairedSubmission:
     def approve(self):
         self.sub_mod.approve(self.submission)
         if self.report is not None:
-            # self.submission.report(self.report)
-            pass
+            self.submission.report(self.report)
 
         self.sub_mod.remove(self.comment)
         unflaired_submission = UnflairedSubmissionModel.get(

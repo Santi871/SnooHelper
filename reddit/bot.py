@@ -13,6 +13,7 @@ import praw.exceptions
 import prawcore.exceptions
 from threading import Thread
 import imgurpython.helpers.error
+import puni
 
 REDDIT_APP_ID = utils.credentials.get_token("REDDIT_APP_ID", "credentials")
 REDDIT_APP_SECRET = utils.credentials.get_token("REDDIT_APP_SECRET", "credentials")
@@ -33,6 +34,7 @@ class SnooHelperBot:
     def __init__(self, team):
         self.config = team
         self.webhook = self.config.webhook
+        print("reddit init")
 
         if self.config.reddit_refresh_token:
             self.r = praw.Reddit(user_agent="Snoohelper 0.1 by /u/Santi871",
@@ -56,9 +58,8 @@ class SnooHelperBot:
         self.subreddit_name = self.subreddit.display_name
         self.already_done_helper = AlreadyDoneHelper()
         self.halt = False
-        self._init_modules()
 
-        t = Thread(target=self.do_work)
+        t = Thread(target=self._init_modules)
         t.start()
 
     def _init_modules(self):
@@ -66,6 +67,7 @@ class SnooHelperBot:
         self.spam_cruncher = None
         self.flair_enforcer = None
         self.botbans = False
+        self.un = None
         users_tracked = False
 
         if 'botbans' in self.config.modules:
@@ -78,6 +80,9 @@ class SnooHelperBot:
         if "flairenforce" in self.config.modules:
             self.flair_enforcer = FlairEnforcer(self.r, self.subreddit_name)
 
+        if "usernotes" in self.config.modules:
+            self.un = puni.UserNotes(self.r, self.subreddit)
+
         '''
         if self.user_warnings or self.botbans:
             self.scan_comments()
@@ -89,10 +94,12 @@ class SnooHelperBot:
         try:
             self.summary_generator = SummaryGenerator(self.subreddit_name, self.config.reddit_refresh_token,
                                                       spamcruncher=self.spam_cruncher, users_tracked=users_tracked,
-                                                      botbans=self.botbans)
+                                                      botbans=self.botbans, un=self.un)
         except imgurpython.helpers.error.ImgurClientError:
             print("IMGUR service unavailable")
             print("Summary generation not available")
+
+        self.do_work()
 
     def botban(self, user, author, replace_original=False):
         response = utils.slack.SlackResponse(replace_original=replace_original)
@@ -222,7 +229,7 @@ class SnooHelperBot:
                 continue
 
             if user.shadowbanned:
-                self.subreddit.remove(submission)
+                self.subreddit.mod.remove(submission)
 
             if self.user_warnings is not None:
                 if user.tracked:
@@ -285,28 +292,56 @@ class SnooHelperBot:
 
                         print("Banned: {}, reason: {}, duration: {}".format(ban_target, ban_reason, ban_length))
 
-                '''
                     if self.un is not None:
-                        utils.add_ban_note(self.un, item)
+                        utils.reddit.add_ban_note(self.un, item)
                     user.bans += 1
                 elif item.action == 'unbanuser':
                     if self.un is not None:
-                        utils.add_ban_note(self.un, item, unban=True)
-                '''
+                        utils.reddit.add_ban_note(self.un, item, unban=True)
 
                 user.save()
                 self.user_warnings.check_user_offenses(user)
 
         db.close()
 
+    def scan_comments(self):
+        comments = self.subreddit.comments(limit=50)
+        sticky_comments_ids = ["t1_" + submission.sticky_cmt_id for submission in SubmissionModel.select()]
+
+        for comment in comments:
+            try:
+                self.already_done_helper.add(comment.id, self.subreddit_name)
+            except IntegrityError:
+                continue
+
+            try:
+                user = UserModel.get(UserModel.username == comment.author.name.lower(),
+                                     UserModel.subreddit == comment.subreddit.display_name)
+            except DoesNotExist:
+                continue
+
+            if user.shadowbanned:
+                self.subreddit.mod.remove(comment)
+            if user.tracked:
+                self.user_warnings.send_warning(comment)
+            if comment.parent_id in sticky_comments_ids:
+                self.subreddit.mod.remove(comment)
+
+            self.user_warnings.check_user_offenses(user)
+        db.close()
+
     def do_work(self):
         while not self.halt:
             if "watchstickies" in self.config.modules or self.user_warnings is not None:
                 self.scan_modlog()
-                time.sleep(10)
 
             if self.user_warnings is not None or self.botbans or self.flair_enforcer is not None:
                 self.scan_submissions()
-                time.sleep(10)
 
-# -2.8014007003502E-5*x + 300.14007003502
+            if self.botbans:
+                self.scan_comments()
+
+            time.sleep(self.config.sleep)
+
+
+

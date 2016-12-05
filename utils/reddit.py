@@ -1,6 +1,34 @@
 from database.models import AlreadyDoneModel
 from peewee import OperationalError, InterfaceError
 import time
+from puni import Note
+
+
+def clamp(min_value, max_value, x):
+    return max(min(x, max_value), min_value)
+
+
+def calculate_sleep(subscribers):
+    sleep = -24.58 + ((300.3865 + 24.58) / (1 + (subscribers / 2285664) ** 0.9862365))
+    sleep = clamp(40, 300, sleep)
+    return sleep
+
+
+def add_ban_note(un, action, unban=False):
+    if not action.description:
+        reason = "none provided"
+    else:
+        reason = action.description
+
+    if not unban:
+        n = Note(action.target_author, 'Banned, reason: ' + reason + ', length: ' + action.details,
+                 action.mod_id, '', 'ban')
+    elif unban and action.description != 'was temporary':
+        n = Note(action.target_author, 'Unbanned.',
+                 action.mod_id, '', 'spamwarning')
+    else:
+        return
+    un.add_note(n)
 
 
 def get_my_moderation(reddit):
