@@ -2,6 +2,7 @@ from database.models import AlreadyDoneModel
 from peewee import OperationalError, InterfaceError
 import time
 from puni import Note
+from retrying import retry
 
 
 def clamp(min_value, max_value, x):
@@ -22,10 +23,10 @@ def add_ban_note(un, action, unban=False):
 
     if not unban:
         n = Note(action.target_author, 'Banned, reason: ' + reason + ', length: ' + action.details,
-                 action.mod_id, '', 'ban')
+                 action.mod, '', 'ban')
     elif unban and action.description != 'was temporary':
         n = Note(action.target_author, 'Unbanned.',
-                 action.mod_id, '', 'spamwarning')
+                 action.mod, '', 'spamwarning')
     else:
         return
     un.add_note(n)
@@ -48,6 +49,7 @@ def is_banned(subreddit, user):
 
 class AlreadyDoneHelper:
 
+    @retry(stop_max_attempt_number=4)
     def __init__(self, logger=None):
         query = AlreadyDoneModel.delete().where((time.time() - AlreadyDoneModel.timestamp) > 604800)
         num = query.execute()

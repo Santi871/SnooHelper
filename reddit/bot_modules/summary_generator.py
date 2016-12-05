@@ -9,6 +9,7 @@ from database.models import UserModel
 import utils
 import praw
 import prawcore.exceptions
+from retrying import retry
 
 
 REDDIT_APP_ID = utils.credentials.get_token("REDDIT_APP_ID", "credentials")
@@ -34,6 +35,7 @@ class SummaryGenerator:
                                  client_id=REDDIT_APP_ID, client_secret=REDDIT_APP_SECRET,
                                  refresh_token=self.refresh_token)
 
+    @retry(stop_max_attempt_number=2)
     def generate_quick_summary(self, username):
         r = self.r
 
@@ -124,6 +126,7 @@ class SummaryGenerator:
 
         return response
 
+    @retry(stop_max_attempt_number=2)
     def generate_expanded_summary(self, username, limit, request):
         r = self.r
         response = utils.slack.SlackResponse(replace_original=False)
@@ -161,32 +164,36 @@ class SummaryGenerator:
         karma_accumulator = 0
         karma_accumulated = []
         karma_accumulated_total = []
+        total_comments_read = 0
 
         for comment in user.comments.new(limit=limit):
-            displayname = comment.subreddit.display_name
-            concatenated_comments += comment.body + " "
-            i += 1
+            print('comment')
+            if comment.distinguished != 'moderator':
+                print('in')
+                displayname = comment.subreddit.display_name
+                concatenated_comments += comment.body + " "
+                i += 1
 
-            if displayname not in subreddit_names:
-                subreddit_names.append(displayname)
+                if displayname not in subreddit_names:
+                    subreddit_names.append(displayname)
 
-            subreddit_total.append(displayname)
+                subreddit_total.append(displayname)
 
-            total_karma = total_karma + comment.score
+                total_karma = total_karma + comment.score
 
-            x.append(datetime.datetime.utcfromtimestamp(float(comment.created_utc)))
-            y.append(comment.score)
-            comment_lengths.append(len(comment.body.split()))
+                x.append(datetime.datetime.utcfromtimestamp(float(comment.created_utc)))
+                y.append(comment.score)
+                comment_lengths.append(len(comment.body.split()))
 
-            if comment.score < 0:
-                total_negative_karma += comment.score
+                if comment.score < 0:
+                    total_negative_karma += comment.score
 
-            if len(comment.body) < 200:
-                troll_index += 0.1
+                if len(comment.body) < 200:
+                    troll_index += 0.1
 
-            if displayname in blacklisted_subreddits:
-                troll_index += 2.5
-        total_comments_read = i
+                if displayname in blacklisted_subreddits:
+                    troll_index += 2.5
+            total_comments_read = i
 
         if total_comments_read < 3:
             response.add_attachment(fallback="Summary for /u/" + username,

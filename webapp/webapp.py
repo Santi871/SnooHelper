@@ -26,7 +26,7 @@ app = Flask(__name__, template_folder='../webapp/templates')
 app.config.from_object('config')
 sslify = SSLify(app)
 slack_teams_controller = SlackTeamsController("teams.ini")
-requests_handler = RequestsHandler(slack_teams_controller.teams)
+requests_handler = RequestsHandler(slack_teams_controller)
 reddits = dict()
 
 
@@ -113,8 +113,8 @@ def reddit_oauth_callback():
         slack_teams_controller.teams[team_name].set("subreddit", subreddit)
         try:
             slack_teams_controller.teams[team_name].bot.halt = True
-        except (AttributeError, KeyError):
-            pass
+        except (AttributeError, KeyError) as e:
+            print("error, " + e)
 
         slack_teams_controller.add_bot(team_name)
 

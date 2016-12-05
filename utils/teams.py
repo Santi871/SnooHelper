@@ -95,6 +95,11 @@ class SlackTeamsController:
         self.teams[team_name] = team
         return team
 
+    def lookup_team_by_id(self, team_id):
+        for key, team in self.teams.items():
+            if team.team_id == team_id:
+                return team
+
     def remove_team(self, team_name):
         # terminate bot
         self.teams.pop(team_name, None)

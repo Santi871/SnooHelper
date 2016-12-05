@@ -66,7 +66,9 @@ class SnooHelperBot:
         self.spam_cruncher = None
         self.flair_enforcer = None
         self.botbans = False
+        self.watch_stickies = False
         self.un = None
+        self.summary_generator = None
         users_tracked = False
 
         if 'botbans' in self.config.modules:
@@ -82,6 +84,9 @@ class SnooHelperBot:
         if "usernotes" in self.config.modules:
             self.un = puni.UserNotes(self.r, self.subreddit)
 
+        if "watchstickies" in self.config.modules:
+            self.watch_stickies = True
+
         '''
         if self.user_warnings or self.botbans:
             self.scan_comments()
@@ -94,10 +99,12 @@ class SnooHelperBot:
             self.summary_generator = SummaryGenerator(self.subreddit_name, self.config.reddit_refresh_token,
                                                       spamcruncher=self.spam_cruncher, users_tracked=users_tracked,
                                                       botbans=self.botbans, un=self.un)
+
         except imgurpython.helpers.error.ImgurClientError:
             print("IMGUR service unavailable")
             print("Summary generation not available")
 
+        print("Done initializing | " + self.config.subreddit)
         self.do_work()
 
     def botban(self, user, author, replace_original=False):
@@ -197,7 +204,7 @@ class SnooHelperBot:
     @own_thread
     def quick_user_summary(self, user, request):
         response = self.summary_generator.generate_quick_summary(user)
-        request.delayed_response(response)
+        response = request.delayed_response(response)
 
     @own_thread
     def expanded_user_summary(self, request, limit, username):
@@ -265,8 +272,12 @@ class SnooHelperBot:
                     user.approved_comments += 1
                 elif item.action == 'sticky' and "watchstickies" in self.config.modules and \
                         item.target_fullname.startswith('t1'):
-                    comment = self.thread_r.comment(item.target_fullname)
-                    submission = comment.submission
+                    comment = self.thread_r.comment(item.target_fullname.strip("t1"))
+
+                    try:
+                        submission = comment.submission
+                    except praw.exceptions.PRAWException as e:
+                        print("PRAW Exception, " + str(e))
 
                     if "flair" not in comment.body:
                         SubmissionModel.create(submission_id=submission.id, sticky_cmt_id=comment.id,
@@ -323,7 +334,7 @@ class SnooHelperBot:
                 self.subreddit.mod.remove(comment)
             if user.tracked:
                 self.user_warnings.send_warning(comment)
-            if comment.parent_id in sticky_comments_ids:
+            if self.watch_stickies and comment.parent_id in sticky_comments_ids:
                 self.subreddit.mod.remove(comment)
 
             self.user_warnings.check_user_offenses(user)
