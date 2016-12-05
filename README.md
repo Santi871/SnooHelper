@@ -1,3 +1,1 @@
-# RedditSlacker2
-
-##WIP
+# SnooHelper2

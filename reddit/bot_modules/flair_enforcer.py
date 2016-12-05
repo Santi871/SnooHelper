@@ -1,6 +1,7 @@
 import datetime
 import praw
-from snoohelper.reddit_interface.database_models import UnflairedSubmissionModel
+import praw.exceptions
+from database.models import UnflairedSubmissionModel
 
 
 class FlairEnforcer:
@@ -8,18 +9,18 @@ class FlairEnforcer:
     """Module that enforces submission flair, keeps track of unflaired submissions, etc.
      Requires 'modflair' and 'flair' permissions"""
 
-    def __init__(self, r, subreddit, grace_period=300):
+    def __init__(self, r, subreddit, grace_period=600):
         self.r = r
         self.subreddit = subreddit
+        self.sub_object = self.r.subreddit(self.subreddit)
         self.unflaired_submissions = list()
-        self.flairs = None
         self.grace_period = grace_period
+        self._load_from_database()
 
     def _load_from_database(self):
         for unflaired_submission in UnflairedSubmissionModel.select():
-            submission = self.r.get_submission(submission_id=unflaired_submission.submission_id)
-            unflaired_submission_obj = UnflairedSubmission(self.r, submission, self.flairs,
-                                                           unflaired_submission.comment_id)
+            submission = self.r.submission(unflaired_submission.submission_id)
+            unflaired_submission_obj = UnflairedSubmission(self.r, submission, unflaired_submission.comment_id)
             self.unflaired_submissions.append(unflaired_submission_obj)
 
     def check_submissions(self):
@@ -40,23 +41,28 @@ class FlairEnforcer:
                     self.unflaired_submissions.remove(unflaired_submission)
 
     def add_submission(self, submission):
-        if datetime.datetime.utcnow().timestamp() - submission.created_utc > self.grace_period:
-            unflaired_submission_obj = UnflairedSubmission(self.r, submission, self.flairs)
+        dt = datetime.datetime.utcfromtimestamp(submission.created_utc)
+
+        if (datetime.datetime.utcnow() - dt).total_seconds() > self.grace_period:
+            print("in")
+            unflaired_submission_obj = UnflairedSubmission(self.r, submission)
             unflaired_submission_obj.remove_and_comment()
             self.unflaired_submissions.append(unflaired_submission_obj)
 
 
 class UnflairedSubmission:
 
-    def __init__(self, r, submission, flairs, comment=None):
+    def __init__(self, r, submission, comment=None):
         self.r = r
         self.submission = submission
         self.sub = submission.subreddit.display_name
+        self.sub_mod = submission.subreddit.mod
         self.comment = comment
-        self.flairs = flairs
+        self.fullname = self.submission.fullname
+        self.flairs = [(flair['flair_text'], flair['flair_template_id']) for flair in self.submission.flair.choices()]
 
         if comment is not None:
-            self.comment = r.get_info(thing_id="t1_" + comment)
+            self.comment = r.comment(comment)
 
         try:
             self.report = submission.mod_reports[0][0]
@@ -64,20 +70,25 @@ class UnflairedSubmission:
             self.report = None
 
     def remove_and_comment(self):
-        self.submission.remove()
         s1 = self.submission.author.name
         s2 = 'https://www.reddit.com/message/compose/?to=/r/' + self.sub
 
         comment = generate_flair_comment(s1, s2, self.flairs)
 
-        self.comment = self.submission.add_comment(comment)
-        self.comment.distinguish(sticky=True)
-        UnflairedSubmissionModel.create(submission_id=self.submission.id, comment_id=self.comment.id)
+        try:
+            self.comment = self.submission.reply(comment)
+        except praw.exceptions.APIException:
+            return
+
+        self.sub_mod.distinguish(self.comment)
+        self.sub_mod.remove(self.submission)
+        UnflairedSubmissionModel.create(submission_id=self.submission.id, comment_id=self.comment.id,
+                                        subreddit=self.submission.subreddit.display_name)
 
     def check_if_flaired(self):
-        self.submission = self.r.get_submission(submission_id=self.submission.id)
-        self.submission.replace_more_comments(limit=None)
-        comments = praw.helpers.flatten_tree(self.submission.comments)
+        self.submission = self.r.submission(self.submission.id)
+        self.submission.comments.replace_more(limit=None)
+        comments = self.submission.comments.list()
 
         if self.submission.link_flair_text is not None:
             return True
@@ -87,20 +98,22 @@ class UnflairedSubmission:
                 if len(body) < 4:
                     for word in body:
                         word = word.lower()
+                        word = word.strip(["'", '"'])
 
                         for tup in self.flairs:
                             if word == tup[0].lower() and comment.author.name == self.submission.author.name:
-                                comment.remove()
-                                self.r.set_flair(self.sub, self.submission, tup[0], tup[1])
+                                self.sub_mod.remove(comment)
+                                self.submission.flair.select(tup[1], tup[0])
                                 return True
         return False
 
     def approve(self):
-        self.submission.approve()
+        self.sub_mod.approve(self.submission)
         if self.report is not None:
-            self.submission.report(self.report)
+            # self.submission.report(self.report)
+            pass
 
-        self.comment.delete()
+        self.sub_mod.remove(self.comment)
         unflaired_submission = UnflairedSubmissionModel.get(
             UnflairedSubmissionModel.submission_id == self.submission.id)
         unflaired_submission.delete_instance()
@@ -111,7 +124,7 @@ class UnflairedSubmission:
         delta_time = d.total_seconds()
 
         if delta_time >= 13600:
-            self.comment.delete()
+            self.sub_mod.remove(self.comment)
             unflaired_submission = UnflairedSubmissionModel.get(
                 UnflairedSubmissionModel.submission_id == self.submission.id)
             unflaired_submission.delete_instance()

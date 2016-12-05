@@ -1,5 +1,5 @@
-import snoohelper.utils.utils as utils
-from snoohelper.reddit_interface.database_models import UserModel
+import utils.slack as utils
+from database.models import UserModel
 import time
 
 
@@ -19,7 +19,7 @@ class UserWarnings:
         attachment = None
 
         if isinstance(user, str):
-            user, _ = UserModel.get_or_create(username=user, subreddit=self.subreddit)
+            user, _ = UserModel.get_or_create(username=user.lower(), subreddit=self.subreddit)
 
         if user.removed_comments > self.comment_threshold:
             attachment = message.add_attachment(title="Warning regarding user /u/" + user.username,
@@ -65,7 +65,7 @@ class UserWarnings:
             self.webhook.send_message(message)
 
     def check_user_posts(self, thing):
-        user, _ = UserModel.get_or_create(username=thing.author.name, subreddit=thing.subreddit.display_name)
+        user, _ = UserModel.get_or_create(username=thing.author.name.lower(), subreddit=thing.subreddit.display_name)
 
         if user.tracked:
             message = utils.SlackResponse("New post by user /u/" + user.username)
@@ -86,14 +86,20 @@ class UserWarnings:
             self.webhook.send_message(message)
 
     def send_warning(self, thing):
-        user, _ = UserModel.get_or_create(username=thing.author.name, subreddit=thing.subreddit.display_name)
+        user, _ = UserModel.get_or_create(username=thing.author.name.lower(), subreddit=thing.subreddit.display_name)
         message = utils.SlackResponse("New post by user /u/" + user.username)
 
         try:
             title = thing.submission.title
         except AttributeError:
             title = thing.title
-        attachment = message.add_attachment(title=title, title_link=thing.permalink, text=thing.body,
+
+        try:
+            body = thing.body
+        except AttributeError:
+            body = None
+
+        attachment = message.add_attachment(title=title, title_link=thing.permalink, text=body,
                                             color='#5c96ab', callback_id="send_warning")
         attachment.add_button("Verify", value="verify", style='primary')
         attachment.add_button("Untrack", value="untrack_" + user.username)
@@ -107,6 +113,6 @@ class UserWarnings:
 
     @staticmethod
     def mute_user_warnings(user, subreddit):
-        user = UserModel.get(UserModel.username == user and UserModel.subreddit == subreddit)
+        user = UserModel.get(UserModel.username == user.lower() and UserModel.subreddit == subreddit)
         user.warnings_muted = True
         user.save()

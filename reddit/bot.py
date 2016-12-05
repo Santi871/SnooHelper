@@ -1,0 +1,312 @@
+import praw
+import utils
+from database.models import UserModel, AlreadyDoneModel, SubmissionModel, UnflairedSubmissionModel, db
+from peewee import OperationalError, IntegrityError, DoesNotExist
+from .bot_modules.user_warnings import UserWarnings
+from .bot_modules.flair_enforcer import FlairEnforcer
+from .bot_modules.summary_generator import SummaryGenerator
+from utils.reddit import AlreadyDoneHelper, is_banned
+from utils.slack import own_thread
+import time
+import re
+import praw.exceptions
+import prawcore.exceptions
+from threading import Thread
+import imgurpython.helpers.error
+
+REDDIT_APP_ID = utils.credentials.get_token("REDDIT_APP_ID", "credentials")
+REDDIT_APP_SECRET = utils.credentials.get_token("REDDIT_APP_SECRET", "credentials")
+REDDIT_REDIRECT_URI = utils.credentials.get_token("REDDIT_REDIRECT_URI", "credentials")
+
+
+db.connect()
+
+try:
+    db.create_tables(models=[UserModel, AlreadyDoneModel, SubmissionModel, UnflairedSubmissionModel])
+except OperationalError:
+    pass
+db.close()
+
+
+class SnooHelperBot:
+
+    def __init__(self, team):
+        self.config = team
+        self.webhook = self.config.webhook
+
+        if self.config.reddit_refresh_token:
+            self.r = praw.Reddit(user_agent="Snoohelper 0.1 by /u/Santi871",
+                                 client_id=REDDIT_APP_ID, client_secret=REDDIT_APP_SECRET,
+                                 refresh_token=self.config.reddit_refresh_token)
+
+            self.thread_r = praw.Reddit(user_agent="Snoohelper 0.1 by /u/Santi871",
+                                 client_id=REDDIT_APP_ID, client_secret=REDDIT_APP_SECRET,
+                                 refresh_token=self.config.reddit_refresh_token)
+
+        else:
+            self.r = praw.Reddit(user_agent="Snoohelper 0.1 by /u/Santi871",
+                                 client_id=REDDIT_APP_ID, client_secret=REDDIT_APP_SECRET,
+                                 redirect_uri=REDDIT_REDIRECT_URI)
+
+            self.thread_r = praw.Reddit(user_agent="Snoohelper 0.1 by /u/Santi871",
+                                 client_id=REDDIT_APP_ID, client_secret=REDDIT_APP_SECRET,
+                                 redirect_uri=REDDIT_REDIRECT_URI)
+
+        self.subreddit = self.thread_r.subreddit(self.config.subreddit)
+        self.subreddit_name = self.subreddit.display_name
+        self.already_done_helper = AlreadyDoneHelper()
+        self.halt = False
+        self._init_modules()
+
+        t = Thread(target=self.do_work)
+        t.start()
+
+    def _init_modules(self):
+        self.user_warnings = None
+        self.spam_cruncher = None
+        self.flair_enforcer = None
+        self.botbans = False
+        users_tracked = False
+
+        if 'botbans' in self.config.modules:
+            self.botbans = True
+
+        if "userwarnings" in self.config.modules:
+            self.user_warnings = UserWarnings(self.subreddit_name, self.webhook, 10, 5, 1, botbans=self.botbans)
+            users_tracked = True
+
+        if "flairenforce" in self.config.modules:
+            self.flair_enforcer = FlairEnforcer(self.r, self.subreddit_name)
+
+        '''
+        if self.user_warnings or self.botbans:
+            self.scan_comments()
+        '''
+
+        if "watchqueue" in self.config.modules:
+            self.monitor_queue()
+
+        try:
+            self.summary_generator = SummaryGenerator(self.subreddit_name, self.config.reddit_refresh_token,
+                                                      spamcruncher=self.spam_cruncher, users_tracked=users_tracked,
+                                                      botbans=self.botbans)
+        except imgurpython.helpers.error.ImgurClientError:
+            print("IMGUR service unavailable")
+            print("Summary generation not available")
+
+    def botban(self, user, author, replace_original=False):
+        response = utils.slack.SlackResponse(replace_original=replace_original)
+        try:
+            redditor = self.r.redditor(user)
+            username = redditor.name
+        except prawcore.exceptions.NotFound:
+            response.add_attachment(title="Error: user not found.", color='danger')
+            return response
+
+        if self.botbans:
+            user, _ = UserModel.get_or_create(username=redditor.name.lower(), subreddit=self.subreddit_name)
+            if not user.shadowbanned:
+                user.shadowbanned = True
+                user.save()
+                attachment = response.add_attachment(title="User /u/%s has been botbanned." % user.username,
+                                        title_link="https://reddit.com/u/" + user.username, color='good',
+                                                     callback_id="botban")
+                attachment.add_field("Author", author)
+                attachment.add_button("Undo", "unbotban_" + user.username)
+            else:
+                response.add_attachment(text='Error: user is already botbanned', color='danger')
+        else:
+            response.add_attachment(text='Error: botbans are not enabled for this team.', color='danger')
+        return response
+
+    def unbotban(self, user, author, replace_original=False):
+        response = utils.slack.SlackResponse(replace_original=replace_original)
+        try:
+            redditor = self.r.redditor(user)
+            username = redditor.name
+        except prawcore.exceptions.NotFound:
+            response.add_attachment(title="Error: user not found.", color='danger')
+            return response
+
+        if self.botbans:
+            user, _ = UserModel.get_or_create(username=redditor.name.lower(), subreddit=self.subreddit_name)
+            if user.shadowbanned:
+                user.shadowbanned = False
+                user.save()
+                attachment = response.add_attachment(title="User /u/%s has been unbotbanned." % user.username,
+                                                     title_link="https://reddit.com/u/" + user.username, color='good',
+                                                     callback_id="unbotban")
+                attachment.add_field("Author", author)
+                attachment.add_button("Undo", "botban_" + user.username)
+            else:
+                response.add_attachment(text='Error: user is not botbanned', color='danger')
+        else:
+            response.add_attachment(text='Error: botbans are not enabled for this team.', color='danger')
+        return response
+
+    def track_user(self, user, replace_original=False):
+        response = utils.slack.SlackResponse(replace_original=replace_original)
+        try:
+            redditor = self.r.redditor(user)
+            username = redditor.name
+        except prawcore.exceptions.NotFound:
+            response.add_attachment(title="Error: user not found.", color='danger')
+            return response
+
+        if self.user_warnings is not None:
+            user, _ = UserModel.get_or_create(username=redditor.name.lower(), subreddit=self.subreddit_name)
+            if not user.tracked:
+                user.tracked = True
+                user.save()
+                response.add_attachment(title="User /u/%s has been marked for tracking." % user.username,
+                                        title_link="https://reddit.com/u/" + user.username, color='good')
+            else:
+                response.add_attachment(text='Error: user is already being tracked', color='danger')
+        else:
+            response.add_attachment(text='Error: user tracking is not enabled for this team.', color='danger')
+        return response
+
+    def untrack_user(self, user, replace_original=False):
+        response = utils.slack.SlackResponse(replace_original=replace_original)
+        try:
+            redditor = self.r.redditor(user)
+            username = redditor.name
+        except prawcore.exceptions.NotFound:
+            response.add_attachment(title="Error: user not found.", color='danger')
+            return response
+
+        if self.user_warnings is not None:
+            user, _ = UserModel.get_or_create(username=redditor.name.lower(), subreddit=self.subreddit_name)
+            if user.tracked:
+                user.tracked = False
+                user.save()
+                response.add_attachment(title="Ceasing to track user /u/%s." % user.username,
+                                        title_link="https://reddit.com/u/" + user.username, color='good')
+            else:
+                response.add_attachment(text='Error: user is not being tracked', color='danger')
+        else:
+            response.add_attachment(text='Error: user tracking is not enabled for this team.', color='danger')
+        return response
+
+    @own_thread
+    def quick_user_summary(self, user, request):
+        response = self.summary_generator.generate_quick_summary(user)
+        request.delayed_response(response)
+
+    @own_thread
+    def expanded_user_summary(self, request, limit, username):
+        response = utils.slack.SlackResponse('Processing your request... please allow a few seconds.',
+                                             replace_original=False)
+        self.summary_generator.generate_expanded_summary(username, limit, request)
+        return response
+
+    def scan_submissions(self):
+        db.connect()
+        submissions = self.subreddit.new(limit=50)
+        if self.flair_enforcer is not None:
+            self.flair_enforcer.check_submissions()
+
+        for submission in submissions:
+            if self.flair_enforcer is not None and submission.link_flair_text is None:
+                self.flair_enforcer.add_submission(submission)
+
+            try:
+                self.already_done_helper.add(submission.id, self.subreddit_name)
+            except IntegrityError:
+                continue
+
+            try:
+                user = UserModel.get(UserModel.username == submission.author.name.lower() and
+                                     UserModel.subreddit == submission.subreddit.display_name)
+            except DoesNotExist:
+                continue
+
+            if user.shadowbanned:
+                self.subreddit.remove(submission)
+
+            if self.user_warnings is not None:
+                if user.tracked:
+                    self.user_warnings.send_warning(submission)
+
+                self.user_warnings.check_user_offenses(user)
+        db.close()
+
+    def scan_modlog(self):
+        subreddit = self.subreddit
+        relevant_actions = ('removecomment', 'removelink', 'approvelink', 'approvecomment', 'banuser', 'sticky')
+
+        db.connect()
+        modlog = list(subreddit.mod.log(limit=20))
+        new_items = 0
+
+        for item in modlog:
+            try:
+                self.already_done_helper.add(item.id, item.subreddit)
+                new_items += 1
+            except IntegrityError:
+                continue
+
+            if item.action in relevant_actions:
+                user, _ = UserModel.get_or_create(username=item.target_author.lower(), subreddit=item.subreddit)
+
+                if item.action == 'removecomment':
+                    user.removed_comments += 1
+                elif item.action == 'removelink':
+                    user.removed_submissions += 1
+                elif item.action == 'approvelink':
+                    user.approved_submissions += 1
+                elif item.action == 'approvecomment':
+                    user.approved_comments += 1
+                elif item.action == 'sticky' and "watchstickies" in self.config.modules and \
+                        item.target_fullname.startswith('t1'):
+                    comment = self.thread_r.comment(item.target_fullname)
+                    submission = comment.submission
+
+                    if "flair" not in comment.body:
+                        SubmissionModel.create(submission_id=submission.id, sticky_cmt_id=comment.id,
+                                               subreddit=submission.subreddit.display_name)
+
+                elif item.action == 'banuser':
+                    try:
+                        ban_length = int(re.findall('\d+', item.details)[0])
+                    except IndexError:
+                        ban_length = None
+
+                    ban_target = item.target_author
+                    ban_author = item._mod
+                    ban_reason = item.description + " | /u/" + ban_author
+
+                    if ban_target != "[deleted]" and is_banned(self.subreddit, user) and \
+                                     "| /u/" not in item.description:
+
+                        # Change to True to issue bans
+                        if False:
+                            self.subreddit.banned.add(ban_target, ban_reason=ban_reason, duration=ban_length)
+
+                        print("Banned: {}, reason: {}, duration: {}".format(ban_target, ban_reason, ban_length))
+
+                '''
+                    if self.un is not None:
+                        utils.add_ban_note(self.un, item)
+                    user.bans += 1
+                elif item.action == 'unbanuser':
+                    if self.un is not None:
+                        utils.add_ban_note(self.un, item, unban=True)
+                '''
+
+                user.save()
+                self.user_warnings.check_user_offenses(user)
+
+        db.close()
+
+    def do_work(self):
+        while not self.halt:
+            if "watchstickies" in self.config.modules or self.user_warnings is not None:
+                self.scan_modlog()
+                time.sleep(10)
+
+            if self.user_warnings is not None or self.botbans or self.flair_enforcer is not None:
+                self.scan_submissions()
+                time.sleep(10)
+
+# -2.8014007003502E-5*x + 300.14007003502
