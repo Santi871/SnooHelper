@@ -3,6 +3,7 @@ import time
 
 from snoohelper.reddit.bot import SnooHelperBot
 from .slack import IncomingWebhook
+import snoohelper.utils
 
 
 class SlackTeam:

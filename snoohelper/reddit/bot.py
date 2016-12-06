@@ -9,7 +9,8 @@ import prawcore.exceptions
 import puni
 from peewee import OperationalError, IntegrityError, DoesNotExist
 from retrying import retry
-from utils.slack import own_thread
+import snoohelper.utils
+from snoohelper.utils.slack import own_thread
 
 from snoohelper.database.models import UserModel, AlreadyDoneModel, SubmissionModel, UnflairedSubmissionModel, db
 from snoohelper.utils.reddit import AlreadyDoneHelper, is_banned

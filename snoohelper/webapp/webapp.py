@@ -6,7 +6,7 @@ import praw
 import requests
 from flask import Flask, request, Response, redirect, render_template, make_response
 from flask_sslify import SSLify
-from utils.teams import SlackTeamsController
+import snoohelper.utils
 
 from snoohelper.utils.credentials import get_token
 from .form import SubredditSelectForm, ModulesSelectForm
@@ -24,7 +24,7 @@ REDDIT_REDIRECT_URI = get_token("REDDIT_REDIRECT_URI", "credentials")
 app = Flask(__name__, template_folder='../webapp/templates')
 app.config.from_object('config')
 sslify = SSLify(app)
-slack_teams_controller = SlackTeamsController("teams.ini")
+slack_teams_controller = snoohelper.utils.teams.SlackTeamsController("teams.ini")
 requests_handler = RequestsHandler(slack_teams_controller)
 reddits = dict()
 cur_bot = dict()

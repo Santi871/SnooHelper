@@ -1,7 +1,6 @@
 import datetime
 import math
 import os
-
 import matplotlib.pyplot as plt
 import numpy as np
 import praw
@@ -9,8 +8,8 @@ import prawcore.exceptions
 from imgurpython import ImgurClient
 from retrying import retry
 from wordcloud import WordCloud, STOPWORDS
-
 from snoohelper.database.models import UserModel
+import snoohelper.utils
 
 REDDIT_APP_ID = snoohelper.utils.credentials.get_token("REDDIT_APP_ID", "credentials")
 REDDIT_APP_SECRET = snoohelper.utils.credentials.get_token("REDDIT_APP_SECRET", "credentials")
