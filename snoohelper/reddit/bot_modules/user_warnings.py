@@ -1,6 +1,7 @@
-import utils.slack as utils
-from database.models import UserModel
 import time
+
+import snoohelper.utils.slack as utils
+from snoohelper.database.models import UserModel
 
 
 class UserWarnings:

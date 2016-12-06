@@ -1,8 +1,10 @@
-from database.models import AlreadyDoneModel
-from peewee import OperationalError, InterfaceError
 import time
+
+from peewee import OperationalError, InterfaceError
 from puni import Note
 from retrying import retry
+
+from snoohelper.database.models import AlreadyDoneModel
 
 
 def clamp(min_value, max_value, x):

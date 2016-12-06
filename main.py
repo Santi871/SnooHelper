@@ -1,4 +1,4 @@
-from webapp.webapp import app
+from snoohelper.webapp.webapp import app
 
 if __name__ == '__main__':
     context = ('santihub.crt', 'santihub.key')

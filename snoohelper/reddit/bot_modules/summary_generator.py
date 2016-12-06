@@ -1,20 +1,20 @@
 import datetime
 import math
 import os
+
 import matplotlib.pyplot as plt
 import numpy as np
-from imgurpython import ImgurClient
-from wordcloud import WordCloud, STOPWORDS
-from database.models import UserModel
-import utils
 import praw
 import prawcore.exceptions
+from imgurpython import ImgurClient
 from retrying import retry
+from wordcloud import WordCloud, STOPWORDS
 
+from snoohelper.database.models import UserModel
 
-REDDIT_APP_ID = utils.credentials.get_token("REDDIT_APP_ID", "credentials")
-REDDIT_APP_SECRET = utils.credentials.get_token("REDDIT_APP_SECRET", "credentials")
-REDDIT_REDIRECT_URI = utils.credentials.get_token("REDDIT_REDIRECT_URI", "credentials")
+REDDIT_APP_ID = snoohelper.utils.credentials.get_token("REDDIT_APP_ID", "credentials")
+REDDIT_APP_SECRET = snoohelper.utils.credentials.get_token("REDDIT_APP_SECRET", "credentials")
+REDDIT_REDIRECT_URI = snoohelper.utils.credentials.get_token("REDDIT_REDIRECT_URI", "credentials")
 
 
 class SummaryGenerator:
@@ -23,8 +23,8 @@ class SummaryGenerator:
 
     def __init__(self, subreddit, refresh_token, spamcruncher=None, un=None, users_tracked=False, botbans=False):
 
-        self.imgur = ImgurClient(utils.credentials.get_token("IMGUR_CLIENT_ID", 'credentials'),
-                                 utils.credentials.get_token("IMGUR_CLIENT_SECRET", 'credentials'))
+        self.imgur = ImgurClient(snoohelper.utils.credentials.get_token("IMGUR_CLIENT_ID", 'credentials'),
+                                 snoohelper.utils.credentials.get_token("IMGUR_CLIENT_SECRET", 'credentials'))
         self.users_tracked = users_tracked
         self.subreddit = subreddit
         self.un = un
@@ -39,7 +39,7 @@ class SummaryGenerator:
     def generate_quick_summary(self, username):
         r = self.r
 
-        response = utils.slack.SlackResponse()
+        response = snoohelper.utils.slack.SlackResponse()
 
         try:
             user = r.redditor(username)
@@ -129,7 +129,7 @@ class SummaryGenerator:
     @retry(stop_max_attempt_number=2)
     def generate_expanded_summary(self, username, limit, request):
         r = self.r
-        response = utils.slack.SlackResponse(replace_original=False)
+        response = snoohelper.utils.slack.SlackResponse(replace_original=False)
 
         try:
             user = r.redditor(username)

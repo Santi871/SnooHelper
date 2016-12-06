@@ -1,17 +1,16 @@
-import os
+import random
+import string
 import time
+
 import praw
 import requests
 from flask import Flask, request, Response, redirect, render_template, make_response
 from flask_sslify import SSLify
-from utils.credentials import get_token
 from utils.teams import SlackTeamsController
-import utils.slack
+
+from snoohelper.utils.credentials import get_token
 from .form import SubredditSelectForm, ModulesSelectForm
 from .requests_handler import RequestsHandler
-import random
-import string
-
 
 SLACK_APP_ID = get_token("SLACK_APP_ID", "credentials")
 SLACK_APP_SECRET = get_token("SLACK_APP_SECRET", "credentials")
@@ -125,7 +124,7 @@ def reddit_oauth_callback():
 
 @app.route('/slack/commands', methods=['POST'])
 def command():
-    slack_request = utils.slack.SlackRequest(request, SLACK_COMMANDS_TOKEN)
+    slack_request = snoohelper.utils.slack.SlackRequest(request, SLACK_COMMANDS_TOKEN)
     if slack_request.is_valid:
 
         response = requests_handler.handle_command(slack_request)
@@ -138,7 +137,7 @@ def command():
 @app.route('/slack/action-endpoint', methods=['POST'])
 def button_response():
 
-    slack_request = utils.slack.SlackRequest(request, SLACK_COMMANDS_TOKEN)
+    slack_request = snoohelper.utils.slack.SlackRequest(request, SLACK_COMMANDS_TOKEN)
     if slack_request.is_valid:
 
         response = requests_handler.handle_button(slack_request)

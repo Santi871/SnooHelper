@@ -1,7 +1,9 @@
 import datetime
+
 import praw
 import praw.exceptions
-from database.models import UnflairedSubmissionModel
+
+from snoohelper.database.models import UnflairedSubmissionModel
 
 
 class FlairEnforcer:
