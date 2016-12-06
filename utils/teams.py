@@ -6,7 +6,7 @@ import utils
 
 class SlackTeam:
     """
-    Represents a Slack Team and contains all the data related to it - such as authentication token, enabled modules,
+    Represents a Slack Team and contains all the data related to it - such as authentication tokens, enabled modules,
     and other configuration parameters, saves the data to an .ini file
 
     The bot attribute is set after initialization by SlackTeamsController
@@ -82,9 +82,7 @@ class SlackTeamsController:
     """
     Utility class for easy management of SlackTeams. Stores current teams in a dict and implements methods for adding
     and removing teams as well as adding a Reddit bot to a team
-
     """
-
     def __init__(self, filename):
         """
         Construct the SlackTeams already present in the teams .ini file as well as their respective bots
