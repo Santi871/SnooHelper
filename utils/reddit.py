@@ -49,7 +49,7 @@ def is_banned(subreddit, user):
 
 class AlreadyDoneHelper:
 
-    @retry(stop_max_attempt_number=4)
+    @retry(stop_max_attempt_number=6, wait_fixed=3000)
     def __init__(self, logger=None):
         query = AlreadyDoneModel.delete().where((time.time() - AlreadyDoneModel.timestamp) > 604800)
         num = query.execute()
