@@ -14,6 +14,7 @@ import prawcore.exceptions
 from threading import Thread
 import imgurpython.helpers.error
 import puni
+from retrying import retry
 
 REDDIT_APP_ID = utils.credentials.get_token("REDDIT_APP_ID", "credentials")
 REDDIT_APP_SECRET = utils.credentials.get_token("REDDIT_APP_SECRET", "credentials")
@@ -357,6 +358,7 @@ class SnooHelperBot:
         time.sleep(1800)
         return last_warned_modqueue
 
+    @retry
     def do_work(self):
         last_warned_modqueue = 0
         while not self.halt:
