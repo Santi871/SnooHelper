@@ -2,12 +2,26 @@ import utils
 
 
 class RequestsHandler:
-
+    """
+    Handles Slack HTTP requests for buttons and slash commands
+    """
     def __init__(self, teams_controller):
+        """
+        Construct RequestsHandler instance
+
+        :param teams_controller: an instance of SlackTeamsController that contains the SlackTeams
+        """
         self.teams_controller = teams_controller
         self.teams = teams_controller.teams
 
     def handle_command(self, slack_request):
+        """
+        Process a Slack slash command HTTP request, returns a response
+
+        :param slack_request: SlackRequest object representing the Slack HTTP request
+        :return: SlackResponse object representing a JSON-encoded response
+        """
+
         response = utils.slack.SlackResponse("Processing your request... please allow a few seconds.")
         user = slack_request.command_args[0]
         team = self.teams_controller.lookup_team_by_id(slack_request.team_id)
@@ -24,6 +38,12 @@ class RequestsHandler:
         return response
 
     def handle_button(self, slack_request):
+        """
+        Process a Slack button HTTP request, returns a response
+
+        :param slack_request: SlackRequest object representing the Slack HTTP request
+        :return: SlackResponse object representing a JSON-encoded response
+        """
         button_pressed = slack_request.actions[0]['value'].split('_')[0]
         args = slack_request.actions[0]['value'].split('_')[1:]
         team = self.teams_controller.lookup_team_by_id(slack_request.team_id)

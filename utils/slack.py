@@ -4,6 +4,12 @@ from threading import Thread
 
 
 def own_thread(func):
+    """
+    Decorator that starts a method or function on its own thread
+
+    :param func: function
+    :return: wrapped function
+    """
     def wrapped_f(*args, **kwargs):
         thread = Thread(target=func, args=args, kwargs=kwargs)
         thread.start()
@@ -57,15 +63,30 @@ def slackresponse_from_message(original_message, delete_buttons=None, footer=Non
 
 
 class IncomingWebhook:
+    """
+    Utility class that wraps a Slack webhook
+    """
 
     def __init__(self, url):
+        """
+        :param url: Slack webhook URL
+        """
         self.url = url
 
-    def send_message(self, response):
-        requests.post(self.url, data=response.get_json())
+    def send_message(self, message):
+        """
+        Send a Slack message via the webhook
+
+        :param message: SlackResponse object
+        :return: requests.Response object
+        """
+        return requests.post(self.url, data=message.get_json())
 
 
 class SlackButton:
+    """
+    Class that represents a JSON-encoded Slack button
+    """
 
     def __init__(self, text, value=None, style="default", confirm=None, yes='Yes'):
         self.button_dict = dict()
@@ -88,6 +109,9 @@ class SlackButton:
 
 
 class SlackField:
+    """
+    Class that represents a JSON-encoded Slack message field
+    """
 
     def __init__(self, title, value, short="true"):
         self.field_dict = dict()
@@ -97,6 +121,9 @@ class SlackField:
 
 
 class SlackAttachment:
+    """
+    Class that represents a JSON-encoded Slack message attachment
+    """
 
     def __init__(self, title=None, text=None, fallback=None, callback_id=None, color=None, title_link=None,
                  image_url=None, footer=None, author_name=None, ts=None):
@@ -148,7 +175,9 @@ class SlackAttachment:
 
 class SlackResponse:
 
-    """Class used for easy crafting of a Slack response"""
+    """
+    Class used for easy crafting of a Slack response
+    """
 
     def __init__(self, text=None, response_type="in_channel", replace_original=True):
         self.response_dict = dict()
@@ -246,7 +275,9 @@ class SlackResponse:
 
 class SlackRequest:
 
-    """Parses HTTP request from Slack"""
+    """
+    Represents an HTTP request from Slack
+    """
 
     def __init__(self, request, slash_commands_secret):
 
