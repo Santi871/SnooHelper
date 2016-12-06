@@ -10,12 +10,26 @@ def clamp(min_value, max_value, x):
 
 
 def calculate_sleep(subscribers):
+    """
+    Calculates SlackTeam.sleep based on the subscribers number
+
+    :param subscribers: Number of subreddit  subscribers
+    :return: sleep seconds (float)
+    """
     sleep = -24.58 + ((300.3865 + 24.58) / (1 + (subscribers / 2285664) ** 0.9862365))
     sleep = clamp(40, 300, sleep)
     return sleep
 
 
 def add_ban_note(un, action, unban=False):
+    """
+    Adds a ban/unban note to a user when they are banned/unbanned
+
+    :param un: puni.UserNotes instance
+    :param action: Modaction from modlog
+    :param unban: pass True if it's an unban
+    :return: None
+    """
     if not action.description:
         reason = "none provided"
     else:
@@ -32,13 +46,14 @@ def add_ban_note(un, action, unban=False):
     un.add_note(n)
 
 
-def get_my_moderation(reddit):
-    url = "/subreddits/mine/moderator"
-    params = {"limit": 100}
-    return list(reddit.get(url, params=params))
-
-
 def is_banned(subreddit, user):
+    """
+    Lookup whether Reddit user is banned from subreddit
+
+    :param subreddit: praw.Subreddit instance
+    :param user: praw.Redditor instance
+    :return: True if banned, False if not banned
+    """
     url = 'r/{}/about/banned/'.format(subreddit.display_name)
     params = {'unique': subreddit._reddit._next_unique, 'user': user}
     if len(list(subreddit._reddit.get(url, params=params))) == 1:
@@ -48,9 +63,16 @@ def is_banned(subreddit, user):
 
 
 class AlreadyDoneHelper:
-
+    """
+    Utility class for easy management of Reddit items or posts that have already been checked
+    """
     @retry(stop_max_attempt_number=6, wait_fixed=3000)
     def __init__(self, logger=None):
+        """
+        Construct AlreadyDoneHelper. Cleans up id's older than a week
+
+        :param logger: logging.Logger instance
+        """
         query = AlreadyDoneModel.delete().where((time.time() - AlreadyDoneModel.timestamp) > 604800)
         num = query.execute()
 
@@ -61,6 +83,13 @@ class AlreadyDoneHelper:
 
     @staticmethod
     def add(thing_id, subreddit):
+        """
+        Attempts to insert AlreadyDoneModel instance to database
+        Raises IntegrityError if the id already exists in database
+
+        :param thing_id: Reddit item/post id
+        :param subreddit: subreddit display name
+        """
 
         while True:
             try:
