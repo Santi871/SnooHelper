@@ -28,6 +28,7 @@ sslify = SSLify(app)
 slack_teams_controller = SlackTeamsController("teams.ini")
 requests_handler = RequestsHandler(slack_teams_controller)
 reddits = dict()
+cur_bot = dict()
 
 
 @app.route("/slack/oauthcallback", methods=['POST', 'GET'])
@@ -40,6 +41,7 @@ def slack_oauth_callback():
         response_json = response.json()
 
         # handle already existing team
+        cur_bot[response_json['team_name']] = slack_teams_controller.teams.get(response_json['team_name'], None)
         slack_teams_controller.add_team(response_json)
 
         response = make_response(render_template('modules_select.html',
@@ -48,7 +50,7 @@ def slack_oauth_callback():
 
         return response
     else:
-        scopes = ['identity', 'mysubreddits', 'modposts', 'read', 'history']
+        scopes = ['identity', 'mysubreddits', 'modposts', 'read', 'history', 'privatemessages']
         form_data = form.modules_select.data
         team_name = request.cookies.get('slack_team_name')
 
@@ -112,9 +114,9 @@ def reddit_oauth_callback():
 
         slack_teams_controller.teams[team_name].set("subreddit", subreddit)
         try:
-            slack_teams_controller.teams[team_name].bot.halt = True
-        except (AttributeError, KeyError) as e:
-            print("error, " + e)
+            cur_bot[team_name].halt = True
+        except AttributeError:
+            pass
 
         slack_teams_controller.add_bot(team_name)
 

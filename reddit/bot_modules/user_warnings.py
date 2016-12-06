@@ -104,7 +104,7 @@ class UserWarnings:
         except AttributeError:
             body = None
 
-        attachment = message.add_attachment(title=title, title_link=thing.permalink, text=body,
+        attachment = message.add_attachment(title=title, title_link=thing.permalink(), text=body,
                                             color='#5c96ab', callback_id="send_warning")
         attachment.add_button("Verify", value="verify", style='primary')
         attachment.add_button("Untrack", value="untrack_" + user.username)

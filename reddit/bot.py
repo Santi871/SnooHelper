@@ -32,6 +32,7 @@ db.close()
 class SnooHelperBot:
 
     def __init__(self, team):
+        self.halt = False
         self.config = team
         self.webhook = self.config.webhook
 
@@ -56,7 +57,6 @@ class SnooHelperBot:
         self.subreddit = self.thread_r.subreddit(self.config.subreddit)
         self.subreddit_name = self.subreddit.display_name
         self.already_done_helper = AlreadyDoneHelper()
-        self.halt = False
 
         t = Thread(target=self._init_modules)
         t.start()
@@ -86,14 +86,6 @@ class SnooHelperBot:
 
         if "watchstickies" in self.config.modules:
             self.watch_stickies = True
-
-        '''
-        if self.user_warnings or self.botbans:
-            self.scan_comments()
-        '''
-
-        if "watchqueue" in self.config.modules:
-            self.monitor_queue()
 
         try:
             self.summary_generator = SummaryGenerator(self.subreddit_name, self.config.reddit_refresh_token,
@@ -204,7 +196,7 @@ class SnooHelperBot:
     @own_thread
     def quick_user_summary(self, user, request):
         response = self.summary_generator.generate_quick_summary(user)
-        response = request.delayed_response(response)
+        request.delayed_response(response)
 
     @own_thread
     def expanded_user_summary(self, request, limit, username):
@@ -317,6 +309,17 @@ class SnooHelperBot:
 
         db.close()
 
+    @own_thread
+    def message_modmail(self, message, author, request):
+        response = utils.slack.SlackResponse("Message sent.")
+
+        message += '\n\n---\n\n_Message sent from Slack via SnooHelper by Slack user @' + author + '_'
+        try:
+            self.subreddit.message("Message sent from Slack via SnooHelper", message)
+        except prawcore.exceptions.Forbidden:
+            response = utils.slack.SlackResponse("Message failed to send. Insufficient permissions.")
+        request.delayed_response(response)
+
     def scan_comments(self):
         comments = self.subreddit.comments(limit=50)
         sticky_comments_ids = ["t1_" + submission.sticky_cmt_id for submission in SubmissionModel.select()]
@@ -343,7 +346,19 @@ class SnooHelperBot:
             self.user_warnings.check_user_offenses(user)
         db.close()
 
+    def monitor_queue(self, last_warned_modqueue):
+        modqueue = list(self.subreddit.mod.modqueue(limit=None))
+        if len(modqueue) > 30 and time.time() - last_warned_modqueue > 7200:
+            message = utils.slack.SlackResponse()
+            message.add_attachment(title='Warning: modqueue has 30> items', text='Please clean modqueue.',
+                                   color='warning')
+            last_warned_modqueue = time.time()
+            self.webhook.send_message(message)
+        time.sleep(1800)
+        return last_warned_modqueue
+
     def do_work(self):
+        last_warned_modqueue = 0
         while not self.halt:
             if "watchstickies" in self.config.modules or self.user_warnings is not None:
                 self.scan_modlog()
@@ -351,8 +366,11 @@ class SnooHelperBot:
             if self.user_warnings is not None or self.botbans or self.flair_enforcer is not None:
                 self.scan_submissions()
 
-            if self.botbans:
+            if self.botbans or self.user_warnings:
                 self.scan_comments()
+
+            if "watchqueues" in self.config.modules:
+                last_warned_modqueue = self.monitor_queue(last_warned_modqueue)
 
             time.sleep(self.config.sleep)
 

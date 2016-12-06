@@ -16,6 +16,8 @@ class RequestsHandler:
             team.bot.quick_user_summary(user=user, request=slack_request)
         elif slack_request.command == '/botban':
             response = team.bot.botban(user=user, author=slack_request.user)
+        elif slack_request.command == '/modmail':
+            team.bot.message_modmail(' '.join(slack_request.command_args), slack_request.user, slack_request)
         else:
             response = utils.slack.SlackResponse("Command not available.")
 
