@@ -115,9 +115,13 @@ class UnflairedSubmission:
         if self.report is not None:
             self.submission.report(self.report)
 
-        self.sub_mod.remove(self.comment)
-        unflaired_submission = UnflairedSubmissionModel.get(
-            UnflairedSubmissionModel.submission_id == self.submission.id)
+        try:
+            self.sub_mod.remove(self.comment)
+        except AttributeError:
+            pass
+
+        unflaired_submission = UnflairedSubmissionModel.\
+            get(UnflairedSubmissionModel.submission_id == self.submission.id)
         unflaired_submission.delete_instance()
 
     def delete_if_overtime(self):

@@ -11,7 +11,6 @@ from peewee import OperationalError, IntegrityError, DoesNotExist, SqliteDatabas
 from retrying import retry
 import snoohelper.utils
 from snoohelper.utils.slack import own_thread
-
 from snoohelper.database.models import UserModel, AlreadyDoneModel, SubmissionModel, UnflairedSubmissionModel, db, Proxy
 from snoohelper.utils.reddit import AlreadyDoneHelper, is_banned
 from .bot_modules.flair_enforcer import FlairEnforcer
@@ -35,26 +34,31 @@ class SnooHelperBot:
             except OperationalError:
                 pass
             db.close()
+        if db_name == "snoohelper_test.db":
+            user_agent = "Snoohelper 0.1 by /u/Santi871 - unittesting"
+        else:
+            user_agent = "Snoohelper 0.1 by /u/Santi871"
 
+        self.db_name = db_name
         self.halt = False
         self.config = team
         self.webhook = self.config.webhook
 
         if self.config.reddit_refresh_token:
-            self.r = praw.Reddit(user_agent="Snoohelper 0.1 by /u/Santi871",
+            self.r = praw.Reddit(user_agent=user_agent,
                                  client_id=REDDIT_APP_ID, client_secret=REDDIT_APP_SECRET,
                                  refresh_token=self.config.reddit_refresh_token)
 
-            self.thread_r = praw.Reddit(user_agent="Snoohelper 0.1 by /u/Santi871",
+            self.thread_r = praw.Reddit(user_agent=user_agent,
                                  client_id=REDDIT_APP_ID, client_secret=REDDIT_APP_SECRET,
                                  refresh_token=self.config.reddit_refresh_token)
 
         else:
-            self.r = praw.Reddit(user_agent="Snoohelper 0.1 by /u/Santi871",
+            self.r = praw.Reddit(user_agent=user_agent,
                                  client_id=REDDIT_APP_ID, client_secret=REDDIT_APP_SECRET,
                                  redirect_uri=REDDIT_REDIRECT_URI)
 
-            self.thread_r = praw.Reddit(user_agent="Snoohelper 0.1 by /u/Santi871",
+            self.thread_r = praw.Reddit(user_agent=user_agent,
                                  client_id=REDDIT_APP_ID, client_secret=REDDIT_APP_SECRET,
                                  redirect_uri=REDDIT_REDIRECT_URI)
 
@@ -212,18 +216,18 @@ class SnooHelperBot:
 
     def scan_submissions(self):
         db.connect()
-        submissions = self.subreddit.new(limit=50)
+        submissions = self.subreddit.new(limit=20)
         if self.flair_enforcer is not None:
             self.flair_enforcer.check_submissions()
 
         for submission in submissions:
-            if self.flair_enforcer is not None and submission.link_flair_text is None:
-                self.flair_enforcer.add_submission(submission)
-
             try:
                 self.already_done_helper.add(submission.id, self.subreddit_name)
             except IntegrityError:
                 continue
+
+            if self.flair_enforcer is not None and submission.link_flair_text is None:
+                self.flair_enforcer.add_submission(submission)
 
             try:
                 user = UserModel.get(UserModel.username == submission.author.name.lower() and
@@ -326,7 +330,8 @@ class SnooHelperBot:
         request.delayed_response(response)
 
     def scan_comments(self):
-        comments = self.subreddit.comments(limit=50)
+        db.connect()
+        comments = self.subreddit.comments(limit=100)
         sticky_comments_ids = ["t1_" + submission.sticky_cmt_id for submission in SubmissionModel.select()]
 
         for comment in comments:
@@ -378,6 +383,8 @@ class SnooHelperBot:
             if "watchqueues" in self.config.modules:
                 last_warned_modqueue = self.monitor_queue(last_warned_modqueue)
 
+            if self.db_name == "snoohelper_test.db":
+                break
             time.sleep(self.config.sleep)
 
 

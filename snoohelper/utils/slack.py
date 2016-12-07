@@ -279,9 +279,13 @@ class SlackRequest:
     Represents an HTTP request from Slack
     """
 
-    def __init__(self, request, slash_commands_secret):
+    def __init__(self, request=None, slash_commands_secret=None, form=None):
 
-        self.form = request.form
+        if form is None:
+            self.form = request.form
+        else:
+            self.form = form
+
         self.request_type = "command"
         self.response = None
         self.command = None
@@ -314,8 +318,9 @@ class SlackRequest:
         self.token = self.form['token']
         # self.team = team_from_team_name(self.team_domain)
 
-        if self.token == self.slash_commands_secret:
-            self.is_valid = True
+        if self.slash_commands_secret is not None:
+            if self.token == self.slash_commands_secret:
+                self.is_valid = True
 
     def delayed_response(self, response):
 

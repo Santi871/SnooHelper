@@ -114,7 +114,6 @@ class SlackTeamsController:
                                  scopes, reddit_refresh_token, sleep=sleep)
                 self.teams[section] = team
                 self.add_bot(section)
-                time.sleep(7)
 
     def add_bot(self, team_name):
         """

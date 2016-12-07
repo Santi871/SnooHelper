@@ -95,7 +95,6 @@ ENV/
 /config.py
 /snoohelper_master.db
 /teams_test.ini
-/tests/teams_test.ini
 /tests/config.ini
 /tests/config.py
 /tests/snoohelper_master.db
@@ -103,3 +102,5 @@ ENV/
 /tests/santihub.key
 /tests/teams.ini
 /snoohelper_test.db
+/tests/teams_test.ini
+/tests/snoohelper_test.db

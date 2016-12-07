@@ -208,19 +208,19 @@ class SummaryGenerator:
             troll_likelihood = 'Low'
             color = 'good'
 
-        if troll_index >= 40 or total_negative_karma < (-70 * (total_comments_read / limit)) or average_karma < 1:
+        if troll_index >= 70 or total_negative_karma < (-70 * (total_comments_read / limit)) or average_karma < 1:
             troll_likelihood = 'Moderate'
             color = 'warning'
 
-        if troll_index >= 60 or total_negative_karma < (-130 * (total_comments_read / limit)) or average_karma < -2:
+        if troll_index >= 90 or total_negative_karma < (-130 * (total_comments_read / limit)) or average_karma < -2:
             troll_likelihood = 'High'
             color = 'danger'
 
-        if troll_index >= 80 or total_negative_karma < (-180 * (total_comments_read / limit)) or average_karma < -5:
+        if troll_index >= 110 or total_negative_karma < (-180 * (total_comments_read / limit)) or average_karma < -5:
             troll_likelihood = 'Very high'
             color = 'danger'
 
-        if troll_index >= 100 or total_negative_karma < (-200 * (total_comments_read / limit)) \
+        if troll_index >= 130 or total_negative_karma < (-200 * (total_comments_read / limit)) \
                 or average_karma < -10:
             troll_likelihood = 'Extremely high'
             color = 'danger'

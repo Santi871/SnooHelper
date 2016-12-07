@@ -68,7 +68,7 @@ class AlreadyDoneHelper:
     """
     Utility class for easy management of Reddit items or posts that have already been checked
     """
-    # @retry(stop_max_attempt_number=6, wait_fixed=3000)
+    @retry(stop_max_attempt_number=6, wait_fixed=3000)
     def __init__(self, logger=None):
         """
         Construct AlreadyDoneHelper. Cleans up id's older than a week
