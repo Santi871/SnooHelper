@@ -20,10 +20,11 @@ REDDIT_REDIRECT_URI = get_token("REDDIT_REDIRECT_URI", "credentials")
 
 def create_app(teams_controller, handler):
     new_app = Flask(__name__, template_folder='../webapp/templates')
-    new_app.config.from_object('config')
     SSLify(new_app)
     new_app.config['CONTROLLER'] = teams_controller
     new_app.config['HANDLER'] = handler
+    new_app.config['WTF_CSRF_ENABLED'] = True
+    new_app.config['SECRET_KEY'] = get_token("SECRET_KEY", "credentials")
 
     reddits = dict()
     cur_bot = dict()
