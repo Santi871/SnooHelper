@@ -101,3 +101,4 @@ ENV/
 /tests/snoohelper_master.db
 /tests/santihub.crt
 /tests/santihub.key
+/tests/teams.ini
