@@ -129,7 +129,7 @@ class SlackTeamsController:
             scopes = os.environ['scopes']
             reddit_refresh_token = os.environ['reddit_refresh_token']
             sleep = os.environ['sleep']
-
+            print(team_name)
             team = SlackTeam(self.filename, team_name, team_id, access_token, webhook_url, subreddit, modules,
                              scopes, reddit_refresh_token, sleep=sleep, save_to_disk=False)
             self.teams[team_name] = team
