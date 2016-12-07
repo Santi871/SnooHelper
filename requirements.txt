@@ -15,7 +15,7 @@ peewee==2.8.5
 Pillow==3.4.2
 praw==4.0.0
 prawcore==0.3.0
-puni==0.3.3a1
+puni==0.3.2
 pyparsing==2.1.10
 python-dateutil==2.6.0
 pytz==2016.10
