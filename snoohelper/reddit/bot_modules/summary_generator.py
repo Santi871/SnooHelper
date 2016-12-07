@@ -10,10 +10,11 @@ from retrying import retry
 from wordcloud import WordCloud, STOPWORDS
 from snoohelper.database.models import UserModel
 import snoohelper.utils
+from snoohelper.utils import credentials
 
-REDDIT_APP_ID = snoohelper.utils.credentials.get_token("REDDIT_APP_ID", "credentials")
-REDDIT_APP_SECRET = snoohelper.utils.credentials.get_token("REDDIT_APP_SECRET", "credentials")
-REDDIT_REDIRECT_URI = snoohelper.utils.credentials.get_token("REDDIT_REDIRECT_URI", "credentials")
+REDDIT_APP_ID = credentials.get_token("REDDIT_APP_ID", "credentials")
+REDDIT_APP_SECRET = credentials.get_token("REDDIT_APP_SECRET", "credentials")
+REDDIT_REDIRECT_URI = credentials.get_token("REDDIT_REDIRECT_URI", "credentials")
 
 
 class SummaryGenerator:
@@ -22,8 +23,8 @@ class SummaryGenerator:
 
     def __init__(self, subreddit, refresh_token, spamcruncher=None, un=None, users_tracked=False, botbans=False):
 
-        self.imgur = ImgurClient(snoohelper.utils.credentials.get_token("IMGUR_CLIENT_ID", 'credentials'),
-                                 snoohelper.utils.credentials.get_token("IMGUR_CLIENT_SECRET", 'credentials'))
+        self.imgur = ImgurClient(credentials.get_token("IMGUR_CLIENT_ID", 'credentials'),
+                                 credentials.get_token("IMGUR_CLIENT_SECRET", 'credentials'))
         self.users_tracked = users_tracked
         self.subreddit = subreddit
         self.un = un

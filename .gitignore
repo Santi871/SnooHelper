@@ -94,3 +94,10 @@ ENV/
 /santihub.crt
 /config.py
 /snoohelper_master.db
+/teams_test.ini
+/tests/teams_test.ini
+/tests/config.ini
+/tests/config.py
+/tests/snoohelper_master.db
+/tests/santihub.crt
+/tests/santihub.key
