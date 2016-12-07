@@ -7,12 +7,12 @@ import praw
 import praw.exceptions
 import prawcore.exceptions
 import puni
-from peewee import OperationalError, IntegrityError, DoesNotExist
+from peewee import OperationalError, IntegrityError, DoesNotExist, SqliteDatabase
 from retrying import retry
 import snoohelper.utils
 from snoohelper.utils.slack import own_thread
 
-from snoohelper.database.models import UserModel, AlreadyDoneModel, SubmissionModel, UnflairedSubmissionModel, db
+from snoohelper.database.models import UserModel, AlreadyDoneModel, SubmissionModel, UnflairedSubmissionModel, db, Proxy
 from snoohelper.utils.reddit import AlreadyDoneHelper, is_banned
 from .bot_modules.flair_enforcer import FlairEnforcer
 from .bot_modules.summary_generator import SummaryGenerator
@@ -23,18 +23,19 @@ REDDIT_APP_SECRET = snoohelper.utils.credentials.get_token("REDDIT_APP_SECRET", 
 REDDIT_REDIRECT_URI = snoohelper.utils.credentials.get_token("REDDIT_REDIRECT_URI", "credentials")
 
 
-db.connect()
-
-try:
-    db.create_tables(models=[UserModel, AlreadyDoneModel, SubmissionModel, UnflairedSubmissionModel])
-except OperationalError:
-    pass
-db.close()
-
-
 class SnooHelperBot:
 
-    def __init__(self, team):
+    def __init__(self, team, db_name):
+        if isinstance(db, Proxy):
+            db.initialize(SqliteDatabase(db_name, threadlocals=True, check_same_thread=False, timeout=30))
+            db.connect()
+
+            try:
+                db.create_tables(models=[UserModel, AlreadyDoneModel, SubmissionModel, UnflairedSubmissionModel])
+            except OperationalError:
+                pass
+            db.close()
+
         self.halt = False
         self.config = team
         self.webhook = self.config.webhook
@@ -61,8 +62,11 @@ class SnooHelperBot:
         self.subreddit_name = self.subreddit.display_name
         self.already_done_helper = AlreadyDoneHelper()
 
-        t = Thread(target=self._init_modules)
-        t.start()
+        if db_name != "snoohelper_test.db":
+            t = Thread(target=self._init_modules)
+            t.start()
+        else:
+            self._init_modules()
 
     def _init_modules(self):
         self.user_warnings = None

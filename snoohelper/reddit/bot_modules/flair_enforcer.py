@@ -25,7 +25,7 @@ class FlairEnforcer:
             unflaired_submission_obj = UnflairedSubmission(self.r, submission, unflaired_submission.comment_id)
             self.unflaired_submissions.append(unflaired_submission_obj)
 
-    def check_submissions(self):
+    def check_submissions(self, force_approve=False):
         for unflaired_submission in self.unflaired_submissions:
             is_flaired = False
 
@@ -34,7 +34,7 @@ class FlairEnforcer:
             except AttributeError:
                 self.unflaired_submissions.remove(unflaired_submission)
 
-            if is_flaired:
+            if is_flaired or force_approve:
                 unflaired_submission.approve()
                 self.unflaired_submissions.remove(unflaired_submission)
             else:
@@ -49,6 +49,7 @@ class FlairEnforcer:
             unflaired_submission_obj = UnflairedSubmission(self.r, submission)
             unflaired_submission_obj.remove_and_comment()
             self.unflaired_submissions.append(unflaired_submission_obj)
+            return unflaired_submission_obj
 
 
 class UnflairedSubmission:

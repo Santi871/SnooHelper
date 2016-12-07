@@ -85,7 +85,7 @@ class SlackTeamsController:
     Utility class for easy management of SlackTeams. Stores current teams in a dict and implements methods for adding
     and removing teams as well as adding a Reddit bot to a team
     """
-    def __init__(self, filename):
+    def __init__(self, filename, db_name):
         """
         Construct the SlackTeams already present in the teams .ini file as well as their respective bots
         Holds current SlackTeams in self.teams dict, keys being the team's name
@@ -94,6 +94,7 @@ class SlackTeamsController:
         """
         self.teams = dict()
         self.filename = filename
+        self.db_name = db_name
 
         config = configparser.ConfigParser()
         config.read(filename)
@@ -123,7 +124,7 @@ class SlackTeamsController:
         :return: instance of SnooHelperBot
         """
 
-        bot = SnooHelperBot(self.teams[team_name])
+        bot = SnooHelperBot(self.teams[team_name], self.db_name)
         self.teams[team_name].bot = bot
         subscribers = self.teams[team_name].bot.subreddit.subscribers
         sleep = snoohelper.utils.reddit.calculate_sleep(subscribers)

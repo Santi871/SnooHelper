@@ -127,7 +127,7 @@ class SummaryGenerator:
         return response
 
     @retry(stop_max_attempt_number=2)
-    def generate_expanded_summary(self, username, limit, request):
+    def generate_expanded_summary(self, username, limit, request=None):
         r = self.r
         response = snoohelper.utils.slack.SlackResponse(replace_original=False)
 
@@ -193,7 +193,7 @@ class SummaryGenerator:
                     troll_index += 2.5
             total_comments_read = i
 
-        if total_comments_read < 3:
+        if total_comments_read < 3 and request is not None:
             response.add_attachment(fallback="Summary for /u/" + username,
                                     text="Summary error: doesn't have enough comments.",
                                     color='danger')
@@ -326,4 +326,5 @@ class SummaryGenerator:
         response.add_attachment(fallback="Wordcloud for /u/" + user.name, image_url=link['link'],
                                              color='good')
 
-        request.delayed_response(response)
+        if request is not None:
+            request.delayed_response(response)
