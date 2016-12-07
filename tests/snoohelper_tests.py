@@ -1,5 +1,5 @@
 import unittest
-
+import os
 from snoohelper.utils.teams import SlackTeamsController
 from snoohelper.utils.slack import SlackResponse, SlackRequest
 from snoohelper.utils.credentials import get_token
@@ -27,7 +27,11 @@ class SnooHelperTest(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         cls.team_name = "SnooHelper Testing"
-        cls.teams_controller = SlackTeamsController("teams_test.ini", "snoohelper_test.db")
+        travis_ci = os.environ.get('team_name', False)
+        if travis_ci:
+            cls.teams_controller = SlackTeamsController("teams_test.ini", "snoohelper_test.db", vars_from_env=True)
+        else:
+            cls.teams_controller = SlackTeamsController("teams_test.ini", "snoohelper_test.db")
         cls.bot = cls.teams_controller.teams[cls.team_name].bot
         cls.submission = cls.bot.r.submission("5gk734")
         cls.requests_handler = RequestsHandler(cls.teams_controller)

@@ -2,6 +2,7 @@ import configparser
 import snoohelper.utils as utils
 from snoohelper.reddit.bot import SnooHelperBot
 from .slack import IncomingWebhook
+import os
 
 
 class SlackTeam:
@@ -14,7 +15,7 @@ class SlackTeam:
     Should not instantiate this class directly, use SlackTeamsController.add_team()
     """
     def __init__(self, filename, team_name, team_id, access_token, webhook_url, subreddit, modules, scopes,
-                 reddit_refresh_token, sleep=60.0):
+                 reddit_refresh_token, sleep=60.0, save_to_disk=True):
         """
         Set instance attributes and save them to an .ini file
 
@@ -31,7 +32,6 @@ class SlackTeam:
         calculated based on number of subscribers
         """
 
-        config = configparser.ConfigParser()
         self.filename = filename
         self.team_name = team_name
         self.team_id = team_id
@@ -44,38 +44,44 @@ class SlackTeam:
         self.reddit_refresh_token = reddit_refresh_token
         self.sleep = sleep
         self.bot = None
-        config.read(filename)
 
-        try:
-            config.add_section(team_name)
-        except configparser.DuplicateSectionError:
-            pass
+        if save_to_disk:
+            config = configparser.ConfigParser()
+            config.read(filename)
 
-        config[team_name]["team_id"] = team_id
-        config[team_name]['access_token'] = access_token
-        config[team_name]['webhook_url'] = webhook_url
-        config[team_name]["subreddit"] = subreddit
-        config[team_name]["modules"] = modules
-        config[team_name]["scopes"] = scopes
-        config[team_name]["reddit_refresh_token"] = reddit_refresh_token
-        config[team_name]["sleep"] = str(self.sleep)
+            try:
+                config.add_section(team_name)
+            except configparser.DuplicateSectionError:
+                pass
 
-        with open(filename, 'w') as configfile:
-            config.write(configfile)
+            config[team_name]["team_id"] = team_id
+            config[team_name]['access_token'] = access_token
+            config[team_name]['webhook_url'] = webhook_url
+            config[team_name]["subreddit"] = subreddit
+            config[team_name]["modules"] = modules
+            config[team_name]["scopes"] = scopes
+            config[team_name]["reddit_refresh_token"] = reddit_refresh_token
+            config[team_name]["sleep"] = str(self.sleep)
 
-    def set(self, attribute, value):
+            with open(filename, 'w') as configfile:
+                config.write(configfile)
+
+    def set(self, attribute, value, save_to_disk=True):
         """
         Set attribute of SlackTeam and save to .ini file
 
         :param attribute: name of the attribute
         :param value: value to set the attribute to
         """
-        config = configparser.ConfigParser()
-        config.read(self.filename)
-        config[self.team_name][attribute] = str(value)
+
         setattr(self, attribute, value)
-        with open(self.filename, 'w') as configfile:
-            config.write(configfile)
+        if save_to_disk:
+            config = configparser.ConfigParser()
+            config.read(self.filename)
+            config[self.team_name][attribute] = str(value)
+
+            with open(self.filename, 'w') as configfile:
+                config.write(configfile)
 
 
 class SlackTeamsController:
@@ -83,49 +89,64 @@ class SlackTeamsController:
     Utility class for easy management of SlackTeams. Stores current teams in a dict and implements methods for adding
     and removing teams as well as adding a Reddit bot to a team
     """
-    def __init__(self, filename, db_name):
+    def __init__(self, filename, db_name, vars_from_env=False):
         """
         Construct the SlackTeams already present in the teams .ini file as well as their respective bots
         Holds current SlackTeams in self.teams dict, keys being the team's name
-
         :param filename: name of the .ini file containing the configuration of all the teams
         """
         self.teams = dict()
         self.filename = filename
         self.db_name = db_name
 
-        config = configparser.ConfigParser()
-        config.read(filename)
+        if not vars_from_env:
+            config = configparser.ConfigParser()
+            config.read(filename)
 
-        for section in config.sections():
-            team_id = config[section]["team_id"]
-            access_token = config[section]['access_token']
-            webhook_url = config[section]['webhook_url']
-            subreddit = config[section]["subreddit"]
-            modules = config[section]["modules"]
-            scopes = config[section]["scopes"]
-            reddit_refresh_token = config[section]["reddit_refresh_token"]
-            sleep = float(config[section]["sleep"])
+            for section in config.sections():
+                team_id = config[section]["team_id"]
+                access_token = config[section]['access_token']
+                webhook_url = config[section]['webhook_url']
+                subreddit = config[section]["subreddit"]
+                modules = config[section]["modules"]
+                scopes = config[section]["scopes"]
+                reddit_refresh_token = config[section]["reddit_refresh_token"]
+                sleep = float(config[section]["sleep"])
 
-            if team_id and access_token and webhook_url and subreddit and modules and scopes and reddit_refresh_token:
-                team = SlackTeam(self.filename, section, team_id, access_token, webhook_url, subreddit, modules,
-                                 scopes, reddit_refresh_token, sleep=sleep)
-                self.teams[section] = team
-                self.add_bot(section)
+                if team_id and access_token and webhook_url and subreddit and modules and scopes and\
+                        reddit_refresh_token:
+                    team = SlackTeam(self.filename, section, team_id, access_token, webhook_url, subreddit, modules,
+                                     scopes, reddit_refresh_token, sleep=sleep)
+                    self.teams[section] = team
+                    self.add_bot(section)
+        else:
+            team_name = os.environ['team_name']
+            team_id = os.environ['team_id']
+            access_token = os.environ['access_token']
+            webhook_url = os.environ['webhook_url']
+            subreddit = os.environ['subreddit']
+            modules = os.environ['modules']
+            scopes = os.environ['scopes']
+            reddit_refresh_token = os.environ['reddit_refresh_token']
+            sleep = os.environ['sleep']
 
-    def add_bot(self, team_name):
+            team = SlackTeam(self.filename, team_name, team_id, access_token, webhook_url, subreddit, modules,
+                             scopes, reddit_refresh_token, sleep=sleep, save_to_disk=False)
+            self.teams[team_name] = team
+            self.add_bot(team_name, save_to_disk=False)
+
+    def add_bot(self, team_name, save_to_disk=True):
         """
         Adds a SnooHelperBot to a SlackTeam
 
         :param team_name: name of the team to add the bot to
         :return: instance of SnooHelperBot
         """
-
         bot = SnooHelperBot(self.teams[team_name], self.db_name)
         self.teams[team_name].bot = bot
         subscribers = self.teams[team_name].bot.subreddit.subscribers
         sleep = utils.reddit.calculate_sleep(subscribers)
-        self.teams[team_name].set("sleep", sleep)
+        self.teams[team_name].set("sleep", sleep, save_to_disk)
         return bot
 
     def add_team(self, slack_payload):
