@@ -1,74 +1,20 @@
-import configparser
-import json
-import time
-from puni import Note
 import requests
-from peewee import OperationalError, InterfaceError
-
-from snoohelper.reddit_interface.database_models import AlreadyDoneModel
-
-
-def get_token(token_name, section, config_name='config.ini'):
-
-    """Get token from .ini file"""
-
-    config = configparser.ConfigParser()
-    config.read(config_name)
-    token = config.get(section, token_name)
-    return token
-
-REDDIT_APP_ID = get_token("REDDIT_APP_ID", "credentials")
-REDDIT_APP_SECRET = get_token("REDDIT_APP_SECRET", "credentials")
+import json
+from threading import Thread
 
 
-def add_ban_note(un, action, unban=False):
-    if not action.description:
-        reason = "none provided"
-    else:
-        reason = action.description
+def own_thread(func):
+    """
+    Decorator that starts a method or function on its own thread
 
-    if not unban:
-        n = Note(action.target_author, 'Banned, reason: ' + reason + ', length: ' + action.details,
-                 action.mod_id, '', 'ban')
-    elif unban and action.description != 'was temporary':
-        n = Note(action.target_author, 'Unbanned.',
-                 action.mod_id, '', 'spamwarning')
-    else:
-        return
-    un.add_note(n)
+    :param func: function
+    :return: wrapped function
+    """
+    def wrapped_f(*args, **kwargs):
+        thread = Thread(target=func, args=args, kwargs=kwargs)
+        thread.start()
 
-
-def set_team_access_credentials(team_name, credentials):
-
-    """Save Reddit user's access/refresh tokens for the bot to use"""
-
-    config = configparser.ConfigParser()
-    config.read(team_name + '_oauth.ini')
-    config.set('token', 'token', credentials['access_token'])
-    config.set('token', 'refresh_token', credentials['refresh_token'])
-    config.set('token', 'valid_until', str(time.time() + 3600))
-
-    with open(team_name + '_oauth.ini', 'w') as configfile:
-        config.write(configfile)
-
-
-def team_from_team_name(team_name):
-
-    """Return a team object from the team's name"""
-
-    config = configparser.ConfigParser()
-    config.read('teams.ini')
-    team = None
-
-    for section in config.sections():
-        if section == team_name:
-            modules = config[section]['modules'].split(',')
-            team = SlackTeam(team_name=team_name, team_id=config[section]['team_id'],
-                             access_token=config[section]['access_token'], subreddit=config[section]['subreddit'],
-                             webhook_url=config[section]['webhook_url'], modules=modules)
-        break
-
-    return team
+    return wrapped_f
 
 
 def slackresponse_from_message(original_message, delete_buttons=None, footer=None, change_buttons=None):
@@ -116,151 +62,31 @@ def slackresponse_from_message(original_message, delete_buttons=None, footer=Non
     return response
 
 
-class SlackTeamsConfig:
-
-    """Takes care of setting up the config for new Slack teams and holding a list of the current teams"""
-
-    def __init__(self, filename):
-        self.filename = filename
-        self.config = configparser.ConfigParser()
-        self.teams = self.get_teams()
-
-    def get_teams(self):
-
-        """Parse teams configfile to generate Team objects"""
-
-        teams = list()
-        self.config.read(self.filename)
-
-        for section in self.config.sections():
-            team_name = section
-            team_id = self.config[section]['team_id']
-            access_token = self.config[section]['access_token']
-            subreddit = self.config.get(section, 'subreddit')
-            modules = self.config.get(section, 'modules').split(',')
-
-            team = SlackTeam(team_name, team_id, access_token, subreddit=subreddit,
-                             webhook_url=self.config[section]['webhook_url'], modules=modules)
-            teams.append(team)
-
-        return teams
-
-    def add_team(self, args_dict):
-
-        """Save new team's attributes to configfile"""
-
-        self.config.read(self.filename)
-        if not args_dict['ok']:
-            return False
-
-        team_name = args_dict['team_name']
-        team_id = args_dict['team_id']
-        access_token = args_dict['access_token']
-        webhook_url = args_dict['incoming_webhook']['url']
-
-        try:
-            self.config.add_section(team_name)
-        except configparser.DuplicateSectionError:
-            raise TeamAlreadyExists
-
-        self.config[team_name]["team_id"] = team_id
-        self.config[team_name]['access_token'] = access_token
-        self.config[team_name]['webhook_url'] = webhook_url
-        self.config[team_name]["subreddit"] = "False"
-        self.config[team_name]["modules"] = "False"
-        with open(self.filename, 'w') as configfile:
-            self.config.write(configfile)
-        team = SlackTeam(team_name, team_id, access_token, webhook_url, modules=None)
-        self.teams.append(team)
-
-        return team
-
-    def set_modules(self, team_name, modules):
-        self.config[team_name]["modules"] = ','.join(modules)
-        with open(self.filename, 'w') as configfile:
-            self.config.write(configfile)
-
-        for team in self.teams:
-            if team.team_name == team_name:
-                team.modules = modules
-
-        self._create_oauth_file(team_name, modules)
-
-    def set_subreddit(self, team_name, subreddit, usernotes=False):
-
-        """Bind a Slack team to a subreddit for the bot to operate on"""
-
-        self.config.read(self.filename)
-        team = None
-        for team in self.teams:
-            if team.team_name == team_name:
-                team.subreddit = subreddit
-                for section in self.config.sections():
-                    if section == team_name:
-                        self.config.set(section, 'subreddit', subreddit)
-                        self.config.set(section, 'usernotes', str(usernotes))
-                        with open(self.filename, 'w') as configfile:
-                            self.config.write(configfile)
-                break
-        return team
-
-    @staticmethod
-    def _create_oauth_file(team_name, modules):
-
-        """Create and prepare a configfile to store the team's authorizing user Reddit access/refresh tokens"""
-
-        config = configparser.ConfigParser()
-
-        try:
-            config.add_section('app')
-            config.add_section('server')
-            config.add_section('token')
-        except configparser.DuplicateSectionError:
-            pass
-
-        # Add variable scopes form, not hardcoded
-        config.set('app', 'scope', 'identity,modlog,modposts,mysubreddits,read,history,modflair,'
-                                   'wikiread,wikiedit,flair')
-        config.set('app', 'refreshable', 'True')
-        config.set('app', 'app_key', REDDIT_APP_ID)
-        config.set('app', 'app_secret', REDDIT_APP_SECRET)
-        config.set('server', 'server_mode', 'False')
-        config.set('server', 'url', '127.0.0.1')
-        config.set('server', 'port', '65010')
-        config.set('server', 'redirect_path', 'authorize_callback')
-        config.set('server', 'link_path', 'oauth')
-        config.set('token', 'token', 'None')
-        config.set('token', 'refresh_token', 'None')
-        config.set('token', 'valid_until', '0')
-
-        with open(team_name + '_oauth.ini', 'w') as configfile:
-            config.write(configfile)
-
-
 class IncomingWebhook:
+    """
+    Utility class that wraps a Slack webhook
+    """
 
     def __init__(self, url):
+        """
+        :param url: Slack webhook URL
+        """
         self.url = url
 
-    def send_message(self, response):
-        requests.post(self.url, data=response.get_json())
+    def send_message(self, message):
+        """
+        Send a Slack message via the webhook
 
-
-class SlackTeam:
-
-    def __init__(self, team_name, team_id, access_token, webhook_url, modules, subreddit=None):
-        self.team_name = team_name
-        self.team_id = team_id
-        self.access_token = access_token
-        self.webhook = IncomingWebhook(webhook_url)
-        self.modules = modules
-        if subreddit == 'False':
-            self.subreddit = None
-        else:
-            self.subreddit = subreddit
+        :param message: SlackResponse object
+        :return: requests.Response object
+        """
+        return requests.post(self.url, data=message.get_json())
 
 
 class SlackButton:
+    """
+    Class that represents a JSON-encoded Slack button
+    """
 
     def __init__(self, text, value=None, style="default", confirm=None, yes='Yes'):
         self.button_dict = dict()
@@ -283,6 +109,9 @@ class SlackButton:
 
 
 class SlackField:
+    """
+    Class that represents a JSON-encoded Slack message field
+    """
 
     def __init__(self, title, value, short="true"):
         self.field_dict = dict()
@@ -292,6 +121,9 @@ class SlackField:
 
 
 class SlackAttachment:
+    """
+    Class that represents a JSON-encoded Slack message attachment
+    """
 
     def __init__(self, title=None, text=None, fallback=None, callback_id=None, color=None, title_link=None,
                  image_url=None, footer=None, author_name=None, ts=None):
@@ -343,7 +175,9 @@ class SlackAttachment:
 
 class SlackResponse:
 
-    """Class used for easy crafting of a Slack response"""
+    """
+    Class used for easy crafting of a Slack response
+    """
 
     def __init__(self, text=None, response_type="in_channel", replace_original=True):
         self.response_dict = dict()
@@ -441,11 +275,17 @@ class SlackResponse:
 
 class SlackRequest:
 
-    """Parses HTTP request from Slack"""
+    """
+    Represents an HTTP request from Slack
+    """
 
-    def __init__(self, request, slash_commands_secret):
+    def __init__(self, request=None, slash_commands_secret=None, form=None):
 
-        self.form = request.form
+        if form is None:
+            self.form = request.form
+        else:
+            self.form = form
+
         self.request_type = "command"
         self.response = None
         self.command = None
@@ -476,10 +316,11 @@ class SlackRequest:
 
         self.response_url = self.form['response_url']
         self.token = self.form['token']
-        self.team = team_from_team_name(self.team_domain)
+        # self.team = team_from_team_name(self.team_domain)
 
-        if self.token == self.slash_commands_secret:
-            self.is_valid = True
+        if self.slash_commands_secret is not None:
+            if self.token == self.slash_commands_secret:
+                self.is_valid = True
 
     def delayed_response(self, response):
 
@@ -495,41 +336,3 @@ class SlackRequest:
         slack_response = requests.post(self.response_url, data=response, headers=headers)
 
         return slack_response
-
-
-class AlreadyDoneHelper:
-
-    def __init__(self, logger):
-        query = AlreadyDoneModel.delete().where((time.time() - AlreadyDoneModel.timestamp) > 7200)
-        num = query.execute()
-
-        if num:
-            logger.info("AlreadyDoneHelper: cleaned up %s ids." % str(num))
-            print("AlreadyDoneHelper: cleaned up %s ids." % str(num))
-
-    @staticmethod
-    def add(thing_id, subreddit):
-
-        while True:
-            try:
-                AlreadyDoneModel.create(thing_id=thing_id, timestamp=time.time(), subreddit=subreddit)
-                break
-            except (OperationalError, InterfaceError):
-                print("Failed to write")
-                time.sleep(1)
-
-
-class TeamAlreadyExists(Exception):
-    pass
-
-
-
-
-
-
-
-
-
-
-
-

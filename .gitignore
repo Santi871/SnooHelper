@@ -1,12 +1,3 @@
-/config.py
-/teams.ini
-/santihub.key
-/santihub.crt
-/config.ini
-/.idea
-/*_oauth.ini
-/*.db
-/*.db-journal
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]
@@ -14,7 +5,6 @@ __pycache__/
 
 # C extensions
 *.so
-/.idea/vcs.xml
 
 # Distribution / packaging
 .Python
@@ -97,3 +87,23 @@ ENV/
 
 # Rope project settings
 .ropeproject
+/.idea/
+/teams.ini
+/santihub.key
+/config.ini
+/santihub.crt
+/config.py
+/snoohelper_master.db
+/teams_test.ini
+/tests/config.ini
+/tests/config.py
+/tests/snoohelper_master.db
+/tests/santihub.crt
+/tests/santihub.key
+/tests/teams.ini
+/snoohelper_test.db
+/tests/teams_test.ini
+/tests/snoohelper_test.db
+/coverage.exe
+/coverage-badge.exe
+/coverage-badge.svg

@@ -1,43 +1,57 @@
 import datetime
 import math
 import os
+
 import matplotlib.pyplot as plt
 import numpy as np
-import praw.errors
+import praw
+import prawcore.exceptions
 from imgurpython import ImgurClient
+from retrying import retry
 from wordcloud import WordCloud, STOPWORDS
-from snoohelper.reddit_interface.database_models import UserModel
-from snoohelper.utils import utils as utils
+
+from snoohelper.database.models import UserModel
+from snoohelper.utils import credentials
+import snoohelper.utils as utils
+
+REDDIT_APP_ID = credentials.get_token("REDDIT_APP_ID", "credentials")
+REDDIT_APP_SECRET = credentials.get_token("REDDIT_APP_SECRET", "credentials")
+REDDIT_REDIRECT_URI = credentials.get_token("REDDIT_REDIRECT_URI", "credentials")
 
 
 class SummaryGenerator:
 
     """Module that generates user summaries. Requires 'read' and 'history' permissions."""
 
-    def __init__(self, subreddit, access_token, spamcruncher=None, un=None, users_tracked=False, botbans=False):
+    def __init__(self, subreddit, refresh_token, spamcruncher=None, un=None, users_tracked=False, botbans=False):
 
-        self.imgur = ImgurClient(utils.get_token("IMGUR_CLIENT_ID", 'credentials'),
-                                 utils.get_token("IMGUR_CLIENT_SECRET", 'credentials'))
+        self.imgur = ImgurClient(credentials.get_token("IMGUR_CLIENT_ID", 'credentials'),
+                                 credentials.get_token("IMGUR_CLIENT_SECRET", 'credentials'))
         self.users_tracked = users_tracked
         self.subreddit = subreddit
         self.un = un
-        self.access_token = access_token
+        self.refresh_token = refresh_token
         self.spamcruncher = spamcruncher
         self.botbans = botbans
+        self.r = praw.Reddit(user_agent="Snoohelper 0.1 by /u/Santi871",
+                                 client_id=REDDIT_APP_ID, client_secret=REDDIT_APP_SECRET,
+                                 refresh_token=self.refresh_token)
 
-    def generate_quick_summary(self, r, username):
+    @retry(stop_max_attempt_number=2)
+    def generate_quick_summary(self, username):
+        r = self.r
 
-        response = utils.SlackResponse()
+        response = utils.slack.SlackResponse()
 
         try:
-            user = r.get_redditor(username, fetch=True)
-        except praw.errors.NotFound:
+            user = r.redditor(username)
+            username = user.name
+        except prawcore.exceptions.NotFound:
             response.add_attachment(fallback="Summary error.",
                                     title="Error: user not found.", color='danger')
             return response
 
-        username = user.name
-        user_track, _ = UserModel.get_or_create(username=username, subreddit=self.subreddit)
+        user_track, _ = UserModel.get_or_create(username=username.lower(), subreddit=self.subreddit)
 
         combined_karma = user.link_karma + user.comment_karma
         account_creation = str(datetime.datetime.fromtimestamp(user.created_utc))
@@ -103,20 +117,29 @@ class SummaryGenerator:
         attachment.add_button("Summary (1000)", "summary_1000_" + username, style='primary')
 
         if self.users_tracked and not user_track.tracked:
-            attachment.add_button("Track", "track_" + username)
+            attachment.add_button("Track", "track_" + user.name)
         elif self.users_tracked and user_track.tracked:
-            attachment.add_button("Untrack", "untrack_" + username)
+            attachment.add_button("Untrack", "untrack_" + user.name)
 
         if self.botbans and not user_track.shadowbanned:
-            attachment.add_button("Botban", "botban_" + username, style='danger')
+            attachment.add_button("Botban", "botban_" + user.name, style='danger')
         elif self.botbans and user_track.shadowbanned:
-            attachment.add_button("Unbotban", "unbotban_" + username, style='danger')
+            attachment.add_button("Unbotban", "unbotban_" + user.name, style='danger')
 
         return response
 
-    def generate_expanded_summary(self, r, username, limit, request):
-        response = utils.SlackResponse(replace_original=False)
-        user = r.get_redditor(username, fetch=True)
+    @retry(stop_max_attempt_number=2)
+    def generate_expanded_summary(self, username, limit, request=None):
+        r = self.r
+        response = utils.slack.SlackResponse(replace_original=False)
+
+        try:
+            user = r.redditor(username)
+            username = user.name
+        except prawcore.exceptions.NotFound:
+            response.add_attachment(fallback="Summary error.",
+                                    title="Error: user not found.", color='danger')
+            return response
 
         i = 0
         total_comments = 0
@@ -143,34 +166,36 @@ class SummaryGenerator:
         karma_accumulator = 0
         karma_accumulated = []
         karma_accumulated_total = []
+        total_comments_read = 0
 
-        for comment in user.get_comments(limit=limit):
-            displayname = comment.subreddit.display_name
-            concatenated_comments += comment.body + " "
-            i += 1
+        for comment in user.comments.new(limit=limit):
+            if comment.distinguished != 'moderator':
+                displayname = comment.subreddit.display_name
+                concatenated_comments += comment.body + " "
+                i += 1
 
-            if displayname not in subreddit_names:
-                subreddit_names.append(displayname)
+                if displayname not in subreddit_names:
+                    subreddit_names.append(displayname)
 
-            subreddit_total.append(displayname)
+                subreddit_total.append(displayname)
 
-            total_karma = total_karma + comment.score
+                total_karma = total_karma + comment.score
 
-            x.append(datetime.datetime.utcfromtimestamp(float(comment.created_utc)))
-            y.append(comment.score)
-            comment_lengths.append(len(comment.body.split()))
+                x.append(datetime.datetime.utcfromtimestamp(float(comment.created_utc)))
+                y.append(comment.score)
+                comment_lengths.append(len(comment.body.split()))
 
-            if comment.score < 0:
-                total_negative_karma += comment.score
+                if comment.score < 0:
+                    total_negative_karma += comment.score
 
-            if len(comment.body) < 200:
-                troll_index += 0.1
+                if len(comment.body) < 200:
+                    troll_index += 0.1
 
-            if displayname in blacklisted_subreddits:
-                troll_index += 2.5
-        total_comments_read = i
+                if displayname in blacklisted_subreddits:
+                    troll_index += 2.5
+            total_comments_read = i
 
-        if total_comments_read < 3:
+        if total_comments_read < 3 and request is not None:
             response.add_attachment(fallback="Summary for /u/" + username,
                                     text="Summary error: doesn't have enough comments.",
                                     color='danger')
@@ -185,19 +210,19 @@ class SummaryGenerator:
             troll_likelihood = 'Low'
             color = 'good'
 
-        if troll_index >= 40 or total_negative_karma < (-70 * (total_comments_read / limit)) or average_karma < 1:
+        if troll_index >= 70 or total_negative_karma < (-70 * (total_comments_read / limit)) or average_karma < 1:
             troll_likelihood = 'Moderate'
             color = 'warning'
 
-        if troll_index >= 60 or total_negative_karma < (-130 * (total_comments_read / limit)) or average_karma < -2:
+        if troll_index >= 90 or total_negative_karma < (-130 * (total_comments_read / limit)) or average_karma < -2:
             troll_likelihood = 'High'
             color = 'danger'
 
-        if troll_index >= 80 or total_negative_karma < (-180 * (total_comments_read / limit)) or average_karma < -5:
+        if troll_index >= 110 or total_negative_karma < (-180 * (total_comments_read / limit)) or average_karma < -5:
             troll_likelihood = 'Very high'
             color = 'danger'
 
-        if troll_index >= 100 or total_negative_karma < (-200 * (total_comments_read / limit)) \
+        if troll_index >= 130 or total_negative_karma < (-200 * (total_comments_read / limit)) \
                 or average_karma < -10:
             troll_likelihood = 'Extremely high'
             color = 'danger'
@@ -284,6 +309,7 @@ class SummaryGenerator:
                                              color=color)
         attachment.add_field("Troll likelihood", troll_likelihood)
         attachment.add_field("Total comments read", total_comments_read)
+
         stopwords = set(STOPWORDS)
 
         wordcloud = WordCloud(width=800, height=400, scale=2, background_color='white',
@@ -301,4 +327,6 @@ class SummaryGenerator:
         plt.clf()
         response.add_attachment(fallback="Wordcloud for /u/" + user.name, image_url=link['link'],
                                              color='good')
-        request.delayed_response(response)
+
+        if request is not None:
+            request.delayed_response(response)

@@ -1,6 +1,6 @@
-from peewee import IntegerField, TextField, SqliteDatabase, Model, BooleanField, TimestampField
+from peewee import IntegerField, TextField, Model, BooleanField, TimestampField, Proxy
 
-db = SqliteDatabase('snoohelper_master.db', threadlocals=True, check_same_thread=False, timeout=30)
+db = Proxy()
 
 
 class BaseModel(Model):
