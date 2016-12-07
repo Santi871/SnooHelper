@@ -1,6 +1,7 @@
 import datetime
 import math
 import os
+
 import matplotlib.pyplot as plt
 import numpy as np
 import praw
@@ -8,9 +9,10 @@ import prawcore.exceptions
 from imgurpython import ImgurClient
 from retrying import retry
 from wordcloud import WordCloud, STOPWORDS
+
 from snoohelper.database.models import UserModel
-import snoohelper.utils
 from snoohelper.utils import credentials
+import snoohelper.utils as utils
 
 REDDIT_APP_ID = credentials.get_token("REDDIT_APP_ID", "credentials")
 REDDIT_APP_SECRET = credentials.get_token("REDDIT_APP_SECRET", "credentials")
@@ -39,7 +41,7 @@ class SummaryGenerator:
     def generate_quick_summary(self, username):
         r = self.r
 
-        response = snoohelper.utils.slack.SlackResponse()
+        response = utils.slack.SlackResponse()
 
         try:
             user = r.redditor(username)
@@ -129,7 +131,7 @@ class SummaryGenerator:
     @retry(stop_max_attempt_number=2)
     def generate_expanded_summary(self, username, limit, request=None):
         r = self.r
-        response = snoohelper.utils.slack.SlackResponse(replace_original=False)
+        response = utils.slack.SlackResponse(replace_original=False)
 
         try:
             user = r.redditor(username)

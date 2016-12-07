@@ -1,11 +1,12 @@
 import random
 import string
 import time
+
 import praw
 import requests
 from flask import Flask, request, Response, redirect, render_template, make_response
 from flask_sslify import SSLify
-import snoohelper.utils
+import snoohelper.utils as utils
 from snoohelper.utils.credentials import get_token
 from .form import SubredditSelectForm, ModulesSelectForm
 
@@ -122,7 +123,7 @@ def create_app(teams_controller, handler):
     @new_app.route('/slack/commands', methods=['POST'])
     def command():
         requests_handler = new_app.config['HANDLER']
-        slack_request = snoohelper.utils.slack.SlackRequest(request, SLACK_COMMANDS_TOKEN)
+        slack_request = utils.slack.SlackRequest(request, SLACK_COMMANDS_TOKEN)
         if slack_request.is_valid:
 
             response = requests_handler.handle_command(slack_request)
@@ -134,7 +135,7 @@ def create_app(teams_controller, handler):
     @new_app.route('/slack/action-endpoint', methods=['POST'])
     def button_response():
         requests_handler = new_app.config['HANDLER']
-        slack_request = snoohelper.utils.slack.SlackRequest(request, SLACK_COMMANDS_TOKEN)
+        slack_request = utils.slack.SlackRequest(request, SLACK_COMMANDS_TOKEN)
         if slack_request.is_valid:
 
             response = requests_handler.handle_button(slack_request)

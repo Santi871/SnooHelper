@@ -1,6 +1,6 @@
-from snoohelper.webapp.webapp import create_app
 from snoohelper.utils.teams import SlackTeamsController
 from snoohelper.webapp.requests_handler import RequestsHandler
+from snoohelper.webapp.webapp import create_app
 
 if __name__ == '__main__':
     context = ('santihub.crt', 'santihub.key')

@@ -104,3 +104,6 @@ ENV/
 /snoohelper_test.db
 /tests/teams_test.ini
 /tests/snoohelper_test.db
+/coverage.exe
+/coverage-badge.exe
+/coverage-badge.svg

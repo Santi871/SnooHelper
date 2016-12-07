@@ -1,10 +1,11 @@
 import unittest
+
 from snoohelper.utils.teams import SlackTeamsController
 from snoohelper.utils.slack import SlackResponse, SlackRequest
+from snoohelper.utils.credentials import get_token
 from snoohelper.reddit.bot_modules.flair_enforcer import UnflairedSubmission
 from snoohelper.webapp.requests_handler import RequestsHandler
-from snoohelper.utils.credentials import get_token
-from  webapp.webapp import create_app
+from snoohelper.webapp.webapp import create_app
 
 
 def create_dummy_command_request(command):
@@ -76,7 +77,7 @@ class SnooHelperTest(unittest.TestCase):
 
         dummy_request = create_dummy_command_request('/botban')
         response = self.requests_handler.handle_command(dummy_request)
-        self.assertTrue(isinstance(response, SlackResponse))
+        self.assertTrue(isinstance(response,SlackResponse))
 
         dummy_request = create_dummy_command_request('/modmail')
         response = self.requests_handler.handle_command(dummy_request)

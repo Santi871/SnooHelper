@@ -1,9 +1,7 @@
 import configparser
-import time
-
+import snoohelper.utils as utils
 from snoohelper.reddit.bot import SnooHelperBot
 from .slack import IncomingWebhook
-import snoohelper.utils
 
 
 class SlackTeam:
@@ -126,7 +124,7 @@ class SlackTeamsController:
         bot = SnooHelperBot(self.teams[team_name], self.db_name)
         self.teams[team_name].bot = bot
         subscribers = self.teams[team_name].bot.subreddit.subscribers
-        sleep = snoohelper.utils.reddit.calculate_sleep(subscribers)
+        sleep = utils.reddit.calculate_sleep(subscribers)
         self.teams[team_name].set("sleep", sleep)
         return bot
 

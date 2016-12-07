@@ -9,17 +9,18 @@ import prawcore.exceptions
 import puni
 from peewee import OperationalError, IntegrityError, DoesNotExist, SqliteDatabase
 from retrying import retry
-import snoohelper.utils
-from snoohelper.utils.slack import own_thread
+
 from snoohelper.database.models import UserModel, AlreadyDoneModel, SubmissionModel, UnflairedSubmissionModel, db, Proxy
 from snoohelper.utils.reddit import AlreadyDoneHelper, is_banned
+from snoohelper.utils.slack import own_thread
+import snoohelper.utils as utils
 from .bot_modules.flair_enforcer import FlairEnforcer
 from .bot_modules.summary_generator import SummaryGenerator
 from .bot_modules.user_warnings import UserWarnings
 
-REDDIT_APP_ID = snoohelper.utils.credentials.get_token("REDDIT_APP_ID", "credentials")
-REDDIT_APP_SECRET = snoohelper.utils.credentials.get_token("REDDIT_APP_SECRET", "credentials")
-REDDIT_REDIRECT_URI = snoohelper.utils.credentials.get_token("REDDIT_REDIRECT_URI", "credentials")
+REDDIT_APP_ID = utils.credentials.get_token("REDDIT_APP_ID", "credentials")
+REDDIT_APP_SECRET = utils.credentials.get_token("REDDIT_APP_SECRET", "credentials")
+REDDIT_REDIRECT_URI = utils.credentials.get_token("REDDIT_REDIRECT_URI", "credentials")
 
 
 class SnooHelperBot:
@@ -111,7 +112,7 @@ class SnooHelperBot:
         self.do_work()
 
     def botban(self, user, author, replace_original=False):
-        response = snoohelper.utils.slack.SlackResponse(replace_original=replace_original)
+        response = utils.slack.SlackResponse(replace_original=replace_original)
         try:
             redditor = self.r.redditor(user)
             username = redditor.name
@@ -129,13 +130,13 @@ class SnooHelperBot:
                                                      callback_id="botban")
                 attachment.add_field("Author", author)
             else:
-                raise snoohelper.utils.exceptions.UserAlreadyBotbanned
+                raise utils.exceptions.UserAlreadyBotbanned
         else:
             response.add_attachment(text='Error: botbans are not enabled for this team.', color='danger')
         return response
 
     def unbotban(self, user, author, replace_original=False):
-        response = snoohelper.utils.slack.SlackResponse(replace_original=replace_original)
+        response = utils.slack.SlackResponse(replace_original=replace_original)
         try:
             redditor = self.r.redditor(user)
             username = redditor.name
@@ -153,13 +154,13 @@ class SnooHelperBot:
                                                      callback_id="unbotban")
                 attachment.add_field("Author", author)
             else:
-                raise snoohelper.utils.exceptions.UserAlreadyUnbotbanned
+                raise utils.exceptions.UserAlreadyUnbotbanned
         else:
             response.add_attachment(text='Error: botbans are not enabled for this team.', color='danger')
         return response
 
     def track_user(self, user, replace_original=False):
-        response = snoohelper.utils.slack.SlackResponse(replace_original=replace_original)
+        response = utils.slack.SlackResponse(replace_original=replace_original)
         try:
             redditor = self.r.redditor(user)
             username = redditor.name
@@ -175,13 +176,13 @@ class SnooHelperBot:
                 response.add_attachment(title="User /u/%s has been marked for tracking." % user.username,
                                         title_link="https://reddit.com/u/" + user.username, color='good')
             else:
-                raise snoohelper.utils.exceptions.UserAlreadyTracked()
+                raise utils.exceptions.UserAlreadyTracked()
         else:
             response.add_attachment(text='Error: user tracking is not enabled for this team.', color='danger')
         return response
 
     def untrack_user(self, user, replace_original=False):
-        response = snoohelper.utils.slack.SlackResponse(replace_original=replace_original)
+        response = utils.slack.SlackResponse(replace_original=replace_original)
         try:
             redditor = self.r.redditor(user)
             username = redditor.name
@@ -197,7 +198,7 @@ class SnooHelperBot:
                 response.add_attachment(title="Ceasing to track user /u/%s." % user.username,
                                         title_link="https://reddit.com/u/" + user.username, color='good')
             else:
-                raise snoohelper.utils.exceptions.UserAlreadyUntracked()
+                raise utils.exceptions.UserAlreadyUntracked()
         else:
             response.add_attachment(text='Error: user tracking is not enabled for this team.', color='danger')
         return response
@@ -209,7 +210,7 @@ class SnooHelperBot:
 
     @own_thread
     def expanded_user_summary(self, request, limit, username):
-        response = snoohelper.utils.slack.SlackResponse('Processing your request... please allow a few seconds.',
+        response = utils.slack.SlackResponse('Processing your request... please allow a few seconds.',
                                                         replace_original=False)
         self.summary_generator.generate_expanded_summary(username, limit, request)
         return response
@@ -307,12 +308,11 @@ class SnooHelperBot:
                         print("Banned: {}, reason: {}, duration: {}".format(ban_target, ban_reason, ban_length))
 
                     if self.un is not None:
-                        snoohelper.utils.reddit.add_ban_note(self.un, item)
+                        utils.reddit.add_ban_note(self.un, item)
                     user.bans += 1
                 elif item.action == 'unbanuser':
                     if self.un is not None:
-                        snoohelper.utils.reddit.add_ban_note(self.un, item, unban=True)
-
+                        utils.reddit.add_ban_note(self.un, item, unban=True)
                 user.save()
                 self.user_warnings.check_user_offenses(user)
 
@@ -320,13 +320,13 @@ class SnooHelperBot:
 
     @own_thread
     def message_modmail(self, message, author, request):
-        response = snoohelper.utils.slack.SlackResponse("Message sent.")
+        response = utils.slack.SlackResponse("Message sent.")
 
         message += '\n\n---\n\n_Message sent from Slack via SnooHelper by Slack user @' + author + '_'
         try:
             self.subreddit.message("Message sent from Slack via SnooHelper", message)
         except prawcore.exceptions.Forbidden:
-            response = snoohelper.utils.slack.SlackResponse("Message failed to send. Insufficient permissions.")
+            response = utils.slack.SlackResponse("Message failed to send. Insufficient permissions.")
         request.delayed_response(response)
 
     def scan_comments(self):
@@ -359,7 +359,7 @@ class SnooHelperBot:
     def monitor_queue(self, last_warned_modqueue):
         modqueue = list(self.subreddit.mod.modqueue(limit=100))
         if len(modqueue) > 30 and time.time() - last_warned_modqueue > 7200:
-            message = snoohelper.utils.slack.SlackResponse()
+            message = utils.slack.SlackResponse()
             message.add_attachment(title='Warning: modqueue has 30> items', text='Please clean modqueue.',
                                    color='warning')
             last_warned_modqueue = time.time()
