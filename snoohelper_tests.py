@@ -26,7 +26,7 @@ class SnooHelperTest(unittest.TestCase):
 
     @classmethod
     def setUpClass(cls):
-        cls.team_name = "SnooHelper Testing"
+        cls.team_name = "SnooHelper"
         travis_ci = os.environ.get('team_name', False)
         if travis_ci:
             cls.teams_controller = SlackTeamsController("teams_test.ini", "snoohelper_test.db", vars_from_env=True)
