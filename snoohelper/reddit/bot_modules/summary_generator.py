@@ -13,7 +13,7 @@ from wordcloud import WordCloud, STOPWORDS
 from snoohelper.database.models import UserModel
 from snoohelper.utils import credentials
 import snoohelper.utils as utils
-import utils.slack
+import snoohelper.utils.slack
 
 REDDIT_APP_ID = credentials.get_token("REDDIT_APP_ID", "credentials")
 REDDIT_APP_SECRET = credentials.get_token("REDDIT_APP_SECRET", "credentials")

@@ -1,5 +1,6 @@
-import utils.slack
-import utils.exceptions
+import snoohelper.utils as utils
+import snoohelper.utils.exceptions
+import snoohelper.utils.slack
 
 
 class RequestsHandler:

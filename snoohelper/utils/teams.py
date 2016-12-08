@@ -1,7 +1,7 @@
 import configparser
-import utils
+import snoohelper.utils as utils
+import snoohelper.utils.reddit
 from snoohelper.reddit.bot import SnooHelperBot
-import utils.reddit
 from .slack import IncomingWebhook
 import os
 
