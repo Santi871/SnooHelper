@@ -11,7 +11,7 @@ def own_thread(func):
     :return: wrapped function
     """
     def wrapped_f(*args, **kwargs):
-        thread = Thread(target=func, args=args, kwargs=kwargs)
+        thread = Thread(target=func, args=args, kwargs=kwargs, daemon=True)
         thread.start()
 
     return wrapped_f

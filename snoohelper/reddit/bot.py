@@ -13,7 +13,10 @@ from retrying import retry
 from snoohelper.database.models import UserModel, AlreadyDoneModel, SubmissionModel, UnflairedSubmissionModel, db, Proxy
 from snoohelper.utils.reddit import AlreadyDoneHelper, is_banned
 from snoohelper.utils.slack import own_thread
-import snoohelper.utils as utils
+import utils.slack
+import utils.exceptions
+import utils.reddit
+import utils.credentials
 from .bot_modules.flair_enforcer import FlairEnforcer
 from .bot_modules.summary_generator import SummaryGenerator
 from .bot_modules.user_warnings import UserWarnings
@@ -68,7 +71,7 @@ class SnooHelperBot:
         self.already_done_helper = AlreadyDoneHelper()
 
         if db_name != "snoohelper_test.db":
-            t = Thread(target=self._init_modules)
+            t = Thread(target=self._init_modules, daemon=True)
             t.start()
         else:
             self._init_modules()
@@ -107,6 +110,7 @@ class SnooHelperBot:
         except imgurpython.helpers.error.ImgurClientError:
             print("IMGUR service unavailable")
             print("Summary generation not available")
+            raise
 
         print("Done initializing | " + self.config.subreddit)
         self.do_work()
