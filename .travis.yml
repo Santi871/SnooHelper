@@ -8,6 +8,6 @@ python:
 install:
   - pip install -r requirements.txt
   - pip install coveralls
-script: coverage run --source=snoohelper snoohelper_tests.py
+script: coverage run --source=snoohelper tests.py
 after_success:
   coveralls
