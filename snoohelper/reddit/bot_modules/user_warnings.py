@@ -127,3 +127,9 @@ class UserWarnings:
         user = UserModel.get(UserModel.username == user.lower() and UserModel.subreddit == subreddit)
         user.warnings_muted = True
         user.save()
+
+    @staticmethod
+    def unmute_user_warnings(user, subreddit):
+        user = UserModel.get(UserModel.username == user.lower() and UserModel.subreddit == subreddit)
+        user.warnings_muted = False
+        user.save()

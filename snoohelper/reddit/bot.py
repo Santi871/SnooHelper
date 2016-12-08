@@ -203,6 +203,12 @@ class SnooHelperBot:
             response.add_attachment(text='Error: user tracking is not enabled for this team.', color='danger')
         return response
 
+    def mute_user_warnings(self, user):
+        self.user_warnings.mute_user_warnings(user, self.subreddit_name)
+
+    def unmute_user_warnings(self, user):
+        self.user_warnings.unmute_user_warnings(user, self.subreddit_name)
+
     @own_thread
     def quick_user_summary(self, user, request):
         response = self.summary_generator.generate_quick_summary(user)

@@ -1,5 +1,4 @@
 import snoohelper.utils as utils
-import snoohelper.utils.exceptions
 
 
 class RequestsHandler:
@@ -125,6 +124,29 @@ class RequestsHandler:
                                                                                  delete_buttons=['Verify'],
                                                                                  footer="Verified by @" + slack_request.user)
             response = original_message
+
+        elif button_pressed == 'mutewarnings':
+            target_user = args[0]
+            team.bot.mute_user_warnings(user=target_user)
+            new_button = utils.slack.SlackButton("Unmute user's warnings", "unmutewarnings_" + target_user,
+                                                 style='danger')
+            replace_buttons = {"Mute user's warnings": new_button}
+
+            response = utils.slack.slackresponse_from_message(slack_request.original_message,
+                                                              footer="User's warnings muted.",
+                                                              change_buttons=replace_buttons)
+
+        elif button_pressed == 'unmutewarnings':
+            target_user = args[0]
+            team.bot.mute_user_warnings(user=target_user)
+            new_button = utils.slack.SlackButton("Mute user's warnings", "mutewarnings_" + target_user,
+                                                 style='danger')
+            replace_buttons = {"Unmute user's warnings": new_button}
+
+            response = utils.slack.slackresponse_from_message(slack_request.original_message,
+                                                              footer="User's warnings unmuted.",
+                                                              change_buttons=replace_buttons)
+
         else:
             response = utils.slack.SlackResponse("Button not functional.")
 

@@ -126,7 +126,6 @@ def create_app(teams_controller, handler):
         requests_handler = new_app.config['HANDLER']
         slack_request = utils.slack.SlackRequest(request, SLACK_COMMANDS_TOKEN)
         if slack_request.is_valid:
-
             response = requests_handler.handle_command(slack_request)
             return Response(response=response.get_json(), mimetype="application/json")
 
