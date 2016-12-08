@@ -79,7 +79,6 @@ class SnooHelperTest(unittest.TestCase):
     def test_command_requests(self):
         dummy_request = create_dummy_command_request('/user')
         response = self.requests_handler.handle_command(dummy_request)
-        print(str(response))
         self.assertTrue(isinstance(response, utils.slack.SlackResponse))
 
         dummy_request = create_dummy_command_request('/botban')
