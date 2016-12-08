@@ -5,7 +5,7 @@ from snoohelper.utils.credentials import get_token
 
 if __name__ == '__main__':
     context = ('santihub.crt', 'santihub.key')
-    testing = bool(get_token("testing", "credentials"))
+    testing = get_token("testing", "credentials", is_bool=True)
     if not testing:
         controller = SlackTeamsController("teams.ini", 'snoohelper_master.db')
     else:
