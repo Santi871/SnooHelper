@@ -31,9 +31,9 @@ class SnooHelperBot:
     def __init__(self, team, db_name):
         self.config = team
         if db_name == "snoohelper_test.db":
-            user_agent = "Snoohelper 0.1 by /u/Santi871 - unittesting"
+            user_agent = "Snoohelper 0.3 by /u/Santi871 - unittesting"
         else:
-            user_agent = "Snoohelper 0.1 by /u/Santi871 - bot of /r/" + self.config.subreddit
+            user_agent = "Snoohelper 0.3 by /u/Santi871 - bot of /r/" + self.config.subreddit
 
         if isinstance(db, Proxy):
             db.initialize(SqliteDatabase(db_name, threadlocals=True, check_same_thread=False, timeout=30))
@@ -228,7 +228,7 @@ class SnooHelperBot:
 
     def scan_submissions(self):
         db.connect()
-        submissions = self.subreddit.new(limit=20)
+        submissions = self.subreddit.new(limit=50)
         if self.flair_enforcer is not None:
             self.flair_enforcer.check_submissions()
 
@@ -416,7 +416,7 @@ class SnooHelperBot:
 
             if self.db_name == "snoohelper_test.db":
                 break
-            time.sleep(self.config.sleep)
+            time.sleep(20)
 
 
 

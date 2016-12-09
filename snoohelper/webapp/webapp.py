@@ -60,7 +60,7 @@ def create_app(teams_controller, handler):
             slack_teams_controller.teams[team_name].set("scopes", scopes)
 
             state = ''.join(random.SystemRandom().choice(string.ascii_uppercase + string.digits) for _ in range(8))
-            r = praw.Reddit(user_agent="Snoohelper 0.1 by /u/Santi871 - authorization module",
+            r = praw.Reddit(user_agent="Snoohelper 0.3 by /u/Santi871 - authorization module",
                             client_id=REDDIT_APP_ID, client_secret=REDDIT_APP_SECRET,
                             redirect_uri=REDDIT_REDIRECT_URI)
             reddits[state] = r

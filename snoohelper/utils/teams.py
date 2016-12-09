@@ -16,7 +16,7 @@ class SlackTeam:
     Should not instantiate this class directly, use SlackTeamsController.add_team()
     """
     def __init__(self, filename, team_name, team_id, access_token, webhook_url, subreddit, modules, scopes,
-                 reddit_refresh_token, sleep=60.0, save_to_disk=True):
+                 reddit_refresh_token, save_to_disk=True):
         """
         Set instance attributes and save them to an .ini file
 
@@ -29,7 +29,6 @@ class SlackTeam:
         :param modules: comma-separated string of modules
         :param scopes: comma-separated string of scopes
         :param reddit_refresh_token: refresh token for Reddit's OAuth
-        :param sleep: time to sleep between subreddit submissions/comments/modlog/etc fetchings, is later automatically
         calculated based on number of subscribers
         """
 
@@ -43,7 +42,6 @@ class SlackTeam:
         self.modules = modules
         self.scopes = scopes
         self.reddit_refresh_token = reddit_refresh_token
-        self.sleep = sleep
         self.bot = None
 
         if save_to_disk:
@@ -62,7 +60,6 @@ class SlackTeam:
             config[team_name]["modules"] = modules
             config[team_name]["scopes"] = scopes
             config[team_name]["reddit_refresh_token"] = reddit_refresh_token
-            config[team_name]["sleep"] = str(self.sleep)
 
             with open(filename, 'w') as configfile:
                 config.write(configfile)
@@ -112,12 +109,11 @@ class SlackTeamsController:
                 modules = config[section]["modules"]
                 scopes = config[section]["scopes"]
                 reddit_refresh_token = config[section]["reddit_refresh_token"]
-                sleep = float(config[section]["sleep"])
 
                 if team_id and access_token and webhook_url and subreddit and modules and scopes and\
                         reddit_refresh_token:
                     team = SlackTeam(self.filename, section, team_id, access_token, webhook_url, subreddit, modules,
-                                     scopes, reddit_refresh_token, sleep=sleep)
+                                     scopes, reddit_refresh_token)
                     self.teams[section] = team
                     self.add_bot(section)
         else:
@@ -132,7 +128,7 @@ class SlackTeamsController:
             sleep = os.environ['sleep']
             print(team_name)
             team = SlackTeam(self.filename, team_name, team_id, access_token, webhook_url, subreddit, modules,
-                             scopes, reddit_refresh_token, sleep=sleep, save_to_disk=False)
+                             scopes, reddit_refresh_token, save_to_disk=False)
             self.teams[team_name] = team
             self.add_bot(team_name, save_to_disk=False)
 
