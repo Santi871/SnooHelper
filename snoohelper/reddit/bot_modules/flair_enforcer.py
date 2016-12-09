@@ -79,7 +79,8 @@ class UnflairedSubmission:
 
         try:
             self.comment = self.submission.reply(comment)
-        except praw.exceptions.APIException:
+        except praw.exceptions.APIException as e:
+            print("PRAW Exception: " + str(e))
             return
 
         self.sub_mod.distinguish(self.comment)
