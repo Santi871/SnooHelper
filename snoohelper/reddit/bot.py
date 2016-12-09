@@ -233,13 +233,13 @@ class SnooHelperBot:
             self.flair_enforcer.check_submissions()
 
         for submission in submissions:
+            if self.flair_enforcer is not None and submission.link_flair_text is None:
+                self.flair_enforcer.add_submission(submission)
+
             try:
                 self.already_done_helper.add(submission.id, self.subreddit_name)
             except IntegrityError:
                 continue
-
-            if self.flair_enforcer is not None and submission.link_flair_text is None:
-                self.flair_enforcer.add_submission(submission)
 
             try:
                 user = UserModel.get(UserModel.username == submission.author.name.lower() and
