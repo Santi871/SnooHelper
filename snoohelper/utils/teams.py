@@ -190,4 +190,5 @@ class SlackTeamsController:
         :param team_name: Name of the SlackTeam
         :return: instance of SlackTeam, or None if not found
         """
+        self.teams[team_name].bot.halt = True
         return self.teams.pop(team_name, None)

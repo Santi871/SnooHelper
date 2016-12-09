@@ -8,6 +8,8 @@ from flask import Flask, request, Response, redirect, render_template, make_resp
 from flask_sslify import SSLify
 import snoohelper.utils as utils
 from snoohelper.utils.credentials import get_token
+import snoohelper.utils.slack
+import snoohelper.utils.reddit
 from .form import SubredditSelectForm, ModulesSelectForm
 
 SLACK_APP_ID = get_token("SLACK_APP_ID", "credentials")
@@ -35,11 +37,11 @@ def create_app(teams_controller, handler):
         slack_teams_controller = new_app.config['CONTROLLER']
 
         if not form.validate_on_submit():
+            # Handle Slack auth and redirect to modules selection
             data = {'client_id': SLACK_APP_ID, 'client_secret': SLACK_APP_SECRET, 'code': request.args.get('code')}
             response = requests.post('https://slack.com/api/oauth.access', params=data)
             response_json = response.json()
 
-            # handle already existing team
             cur_bot[response_json['team_name']] = slack_teams_controller.teams.get(response_json['team_name'], None)
             slack_teams_controller.add_team(response_json)
 
@@ -49,25 +51,16 @@ def create_app(teams_controller, handler):
 
             return response
         else:
-            scopes = ['identity', 'mysubreddits', 'modposts', 'read', 'history', 'privatemessages']
+            # Handle modules selection and redirect to Reddit auth
             form_data = form.modules_select.data
             team_name = request.cookies.get('slack_team_name')
+            scopes, modules = snoohelper.utils.reddit.get_scopes(form_data)
 
-            if "usernotes" in form_data:
-                scopes.append('wikiedit')
-                scopes.append('wikiread')
-            if "userwarnings" in form_data:
-                scopes.append('modlog')
-            if "flairenforce" in form_data:
-                scopes.append('flair')
-                scopes.append('modflair')
-                scopes.append('submit')
-                scopes.append('report')
+            slack_teams_controller.teams[team_name].set("modules", modules)
+            slack_teams_controller.teams[team_name].set("scopes", scopes)
 
-            slack_teams_controller.teams[team_name].set("modules", ','.join(form_data))
-            slack_teams_controller.teams[team_name].set("scopes", ','.join(scopes))
             state = ''.join(random.SystemRandom().choice(string.ascii_uppercase + string.digits) for _ in range(8))
-            r = praw.Reddit(user_agent="Snoohelper 0.1 by /u/Santi871",
+            r = praw.Reddit(user_agent="Snoohelper 0.1 by /u/Santi871 - authorization module",
                             client_id=REDDIT_APP_ID, client_secret=REDDIT_APP_SECRET,
                             redirect_uri=REDDIT_REDIRECT_URI)
             reddits[state] = r
@@ -82,6 +75,7 @@ def create_app(teams_controller, handler):
         slack_teams_controller = new_app.config['CONTROLLER']
 
         if request.method == 'GET':
+            # Handle Reddit auth and show subreddit selection template
             code = request.args.get('code', None)
             state = request.args.get('state', None)
             r = reddits[state]
@@ -105,18 +99,15 @@ def create_app(teams_controller, handler):
                 return render_template('subreddit_select.html', title='Select Subreddit', form=form)
 
         elif request.method == 'POST':
+            # Finish up with Reddit auth and start bot
             subreddit = form.subreddit_select.data
             team_name = request.cookies.get('slack_team_name', None)
 
             if team_name is None:
                 return "There was an error processing your request, please try again."
 
+            slack_teams_controller.remove_team(team_name)
             slack_teams_controller.teams[team_name].set("subreddit", subreddit)
-            try:
-                cur_bot[team_name].halt = True
-            except AttributeError:
-                pass
-
             slack_teams_controller.add_bot(team_name)
 
             return "Successfully added Slack team and linked to subreddit. Enjoy!"

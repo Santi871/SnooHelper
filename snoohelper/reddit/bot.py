@@ -29,6 +29,12 @@ REDDIT_REDIRECT_URI = snoohelper.utils.credentials.get_token("REDDIT_REDIRECT_UR
 class SnooHelperBot:
 
     def __init__(self, team, db_name):
+        self.config = team
+        if db_name == "snoohelper_test.db":
+            user_agent = "Snoohelper 0.1 by /u/Santi871 - unittesting"
+        else:
+            user_agent = "Snoohelper 0.1 by /u/Santi871 - bot of /r/" + self.config.subreddit
+
         if isinstance(db, Proxy):
             db.initialize(SqliteDatabase(db_name, threadlocals=True, check_same_thread=False, timeout=30))
             db.connect()
@@ -38,14 +44,9 @@ class SnooHelperBot:
             except OperationalError:
                 pass
             db.close()
-        if db_name == "snoohelper_test.db":
-            user_agent = "Snoohelper 0.1 by /u/Santi871 - unittesting"
-        else:
-            user_agent = "Snoohelper 0.1 by /u/Santi871"
 
         self.db_name = db_name
         self.halt = False
-        self.config = team
         self.webhook = self.config.webhook
 
         if self.config.reddit_refresh_token:

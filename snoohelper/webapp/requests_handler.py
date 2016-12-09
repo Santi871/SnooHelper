@@ -27,20 +27,32 @@ class RequestsHandler:
         response = utils.slack.SlackResponse("Processing your request... please allow a few seconds.")
         user = slack_request.command_args[0]
         team = self.teams_controller.lookup_team_by_id(slack_request.team_id)
+        if team is None:
+            response = utils.slack.SlackResponse()
+            response.add_attachment(text="Error: looks like your team's bot isn't running.", color='danger')
+            return response
 
         if slack_request.command == '/user':
             team.bot.quick_user_summary(user=user, request=slack_request)
-        elif slack_request.command == '/botban':
+        elif slack_request.command == '/botban' and "botbans" in team.bot.modules:
             try:
                 response = team.bot.botban(user=user, author=slack_request.user)
             except utils.exceptions.UserAlreadyBotbanned:
                 response = utils.slack.SlackResponse()
                 response.add_attachment(text="Error: user already botbanned.", color='danger')
 
-        elif slack_request.command == '/modmail':
+        elif slack_request.command == '/modmail' and "sendmodmail" in team.bot.modules:
             team.bot.message_modmail(' '.join(slack_request.command_args), slack_request.user, slack_request)
+
+        elif slack_request.command == '/restartbot':
+            response = utils.slack.SlackRequest("Attempting to restart bot.")
+            self.teams[team.team_name].bot.halt = True
+            self.teams_controller.add_bot(team.team_name)
+
         else:
-            response = utils.slack.SlackResponse("Command not available.")
+            response = utils.slack.SlackResponse()
+            response.add_attachment(text="Command not available. Module has not been activated for this subreddit",
+                                    color='danger')
 
         return response
 
@@ -54,12 +66,16 @@ class RequestsHandler:
         button_pressed = slack_request.actions[0]['value'].split('_')[0]
         args = slack_request.actions[0]['value'].split('_')[1:]
         team = self.teams_controller.lookup_team_by_id(slack_request.team_id)
+        if team is None:
+            response = utils.slack.SlackResponse()
+            response.add_attachment(text="Error: looks like your team's bot isn't running.", color='danger')
+            return response
 
         if button_pressed == "summary":
             limit = int(slack_request.actions[0]['value'].split('_')[1])
             target_user = '_'.join(slack_request.actions[0]['value'].split('_')[2:])
             original_message = utils.slack.slackresponse_from_message(slack_request.original_message,
-                                                                                 footer="Summary (%s) requested." % args[0])
+                                                                      footer="Summary (%s) requested." % args[0])
             original_message.set_replace_original(True)
             response = original_message
             team.bot.expanded_user_summary(request=slack_request, limit=limit, username=target_user)
@@ -123,8 +139,8 @@ class RequestsHandler:
 
         elif button_pressed == "verify":
             original_message = utils.slack.slackresponse_from_message(slack_request.original_message,
-                                                                                 delete_buttons=['Verify'],
-                                                                                 footer="Verified by @" + slack_request.user)
+                                                                      delete_buttons=['Verify'],
+                                                                      footer="Verified by @" + slack_request.user)
             response = original_message
 
         elif button_pressed == 'mutewarnings':

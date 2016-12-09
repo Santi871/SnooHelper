@@ -64,6 +64,27 @@ def is_banned(subreddit, user):
         return False
 
 
+def get_scopes(form_data):
+    scopes = ['identity', 'mysubreddits', 'read']
+    if "usernotes" in form_data:
+        scopes.append('wikiedit')
+        scopes.append('wikiread')
+    if "userwarnings" in form_data:
+        scopes.append('modlog')
+    if "flairenforce" in form_data:
+        scopes.append('modflair')
+        scopes.append('submit')
+        scopes.append('report')
+    if "botbans" in form_data:
+        scopes.append("modposts")
+    if "sendmodmail" in form_data:
+        scopes.append("privatemessages")
+
+    scopes = ','.join(scopes)
+    modules = ','.join(form_data)
+    return scopes, modules
+
+
 class AlreadyDoneHelper:
     """
     Utility class for easy management of Reddit items or posts that have already been checked
