@@ -311,6 +311,7 @@ class SlackRequest:
             self.team_domain = self.form['team_domain']
             self.team_id = self.form['team_id']
             self.command = self.form['command']
+            self.text = self.form['text']
             self.command_args = self.form['text'].split()
             self.channel_name = self.form['channel_name']
 

@@ -340,6 +340,26 @@ class SnooHelperBot:
             response = snoohelper.utils.slack.SlackResponse("Message failed to send. Insufficient permissions.")
         request.delayed_response(response)
 
+    def import_botbans(self, botbans_string):
+        botbans_string = botbans_string.replace("'", "")
+        botbans_string = botbans_string.replace('"', "")
+        botbans_string = botbans_string.replace("[", "")
+        botbans_string = botbans_string.replace("]", "")
+        users = botbans_string.split(',')
+        n = 0
+        db.connect()
+        for user in users:
+            user_record, _ = UserModel.get_or_create(username=user.lower(), subreddit=self.subreddit_name)
+            user_record.shadowbanned = True
+            user_record.save()
+            n += 1
+        db.close()
+
+        response = snoohelper.utils.slack.SlackResponse()
+        response.add_attachment(text="Botbans imported successfully. Number of botbans imported: {}.".format(n),
+                                color='good')
+        return response
+
     def scan_comments(self):
         db.connect()
         comments = self.subreddit.comments(limit=100)

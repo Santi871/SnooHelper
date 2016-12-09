@@ -49,6 +49,8 @@ class RequestsHandler:
             self.teams[team.team_name].bot.halt = True
             self.teams_controller.add_bot(team.team_name)
 
+        elif slack_request.command == '/importbotbans' and "botbans" in team.modules:
+            response = team.bot.import_botbans(slack_request.text)
         else:
             response = utils.slack.SlackResponse()
             response.add_attachment(text="Command not available. Module has not been activated for this subreddit",
