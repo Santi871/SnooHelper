@@ -34,14 +34,14 @@ class RequestsHandler:
 
         if slack_request.command == '/user':
             team.bot.quick_user_summary(user=user, request=slack_request)
-        elif slack_request.command == '/botban' and "botbans" in team.bot.modules:
+        elif slack_request.command == '/botban' and "botbans" in team.modules:
             try:
                 response = team.bot.botban(user=user, author=slack_request.user)
             except utils.exceptions.UserAlreadyBotbanned:
                 response = utils.slack.SlackResponse()
                 response.add_attachment(text="Error: user already botbanned.", color='danger')
 
-        elif slack_request.command == '/modmail' and "sendmodmail" in team.bot.modules:
+        elif slack_request.command == '/modmail' and "sendmodmail" in team.modules:
             team.bot.message_modmail(' '.join(slack_request.command_args), slack_request.user, slack_request)
 
         elif slack_request.command == '/restartbot':

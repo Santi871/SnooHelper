@@ -9,7 +9,7 @@ import prawcore.exceptions
 from imgurpython import ImgurClient
 from retrying import retry
 from wordcloud import WordCloud, STOPWORDS
-
+import imgurpython.helpers.error
 from snoohelper.database.models import UserModel
 from snoohelper.utils import credentials
 import snoohelper.utils as utils
@@ -298,7 +298,14 @@ class SummaryGenerator:
 
         path = os.getcwd() + "/" + filename
 
-        link = self.imgur.upload_from_path(path, config=None, anon=True)
+        try:
+            link = self.imgur.upload_from_path(path, config=None, anon=True)
+        except imgurpython.helpers.error.ImgurClientError:
+            response.add_attachment(text="Error: imgur services unavailable. Unable to upload summary.")
+            if request is not None:
+                request.delayed_response(response)
+            return
+
         os.remove(path)
 
         plt.clf()
@@ -322,7 +329,14 @@ class SummaryGenerator:
         figure.set_size_inches(13, 8)
         plt.savefig(filename, bbox_inches='tight')
         path = os.getcwd() + "/" + filename
-        link = self.imgur.upload_from_path(path, config=None, anon=True)
+
+        try:
+            link = self.imgur.upload_from_path(path, config=None, anon=True)
+        except imgurpython.helpers.error.ImgurClientError:
+            response.add_attachment(text="Error: imgur services unavailable. Unable to upload summary.")
+            if request is not None:
+                request.delayed_response(response)
+            return
         os.remove(path)
 
         plt.clf()
