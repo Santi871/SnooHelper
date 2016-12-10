@@ -100,7 +100,6 @@ class SnooHelperBot:
 
         if "flairenforce" in self.config.modules:
             sample_submission = list(self.subreddit.new(limit=1))[0]
-            print("starting fe")
             self.flair_enforcer = FlairEnforcer(self.r, self.subreddit_name, sample_submission)
 
         if "usernotes" in self.config.modules:
@@ -259,7 +258,6 @@ class SnooHelperBot:
             self.flair_enforcer.check_submissions()
 
         for submission in submissions:
-            print(submission.link_flair_text)
             if self.flair_enforcer is not None and submission.link_flair_text is None:
                 self.flair_enforcer.add_submission(submission)
 
