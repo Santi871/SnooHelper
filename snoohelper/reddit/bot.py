@@ -9,6 +9,8 @@ import prawcore.exceptions
 import puni
 from peewee import OperationalError, IntegrityError, DoesNotExist, SqliteDatabase
 import datetime
+import requests.exceptions
+from retrying import retry
 
 from snoohelper.database.models import UserModel, AlreadyDoneModel, SubmissionModel, UnflairedSubmissionModel, db, Proxy
 from snoohelper.database.models import FilterModel
@@ -26,6 +28,14 @@ from .bot_modules.filters import FiltersController
 REDDIT_APP_ID = snoohelper.utils.credentials.get_token("REDDIT_APP_ID", "credentials")
 REDDIT_APP_SECRET = snoohelper.utils.credentials.get_token("REDDIT_APP_SECRET", "credentials")
 REDDIT_REDIRECT_URI = snoohelper.utils.credentials.get_token("REDDIT_REDIRECT_URI", "credentials")
+
+
+def retry_if_connection_error(exc):
+    if isinstance(exc, requests.exceptions.ConnectionError) or isinstance(exc, prawcore.exceptions.RequestException):
+        print("Connection error")
+        time.sleep(5)
+        return True
+    return False
 
 
 class SnooHelperBot:
@@ -495,6 +505,7 @@ class SnooHelperBot:
             self.webhook.send_message(message)
         return last_warned_modqueue
 
+    @retry(retry_on_exception=retry_if_connection_error)
     def do_work(self):
         last_warned_modqueue = 0
         while not self.halt:
