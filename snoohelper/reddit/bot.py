@@ -8,6 +8,7 @@ import praw.exceptions
 import prawcore.exceptions
 import puni
 from peewee import OperationalError, IntegrityError, DoesNotExist, SqliteDatabase
+import datetime
 
 from snoohelper.database.models import UserModel, AlreadyDoneModel, SubmissionModel, UnflairedSubmissionModel, db, Proxy
 from snoohelper.database.models import FilterModel
@@ -213,6 +214,20 @@ class SnooHelperBot:
         else:
             response.add_attachment(text='Error: user tracking is not enabled for this team.', color='danger')
         return response
+
+    def inspect_ban(self, user):
+        response = snoohelper.utils.slack.SlackResponse()
+        try:
+            banned_user = list(self.subreddit.banned(redditor=user))[0]
+        except IndexError:
+            response.add_attachment(text="No bans found for /u/{}.".format(user), color='danger')
+            return response
+
+        attachment = response.add_attachment(title="Found a ban", text=banned_user.note)
+        attachment.add_field("Ban date", value=str(datetime.datetime.fromtimestamp(banned_user.date)))
+
+
+
 
     def mute_user_warnings(self, user):
         self.user_warnings.mute_user_warnings(user, self.subreddit_name)

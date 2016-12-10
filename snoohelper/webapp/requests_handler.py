@@ -99,6 +99,10 @@ class RequestsHandler:
             comment_id = slack_request.command_args[0]
             response = team.bot.add_watched_comment(comment_id)
 
+        elif slack_request.command == "/inspectban":
+            user = slack_request.command_args[0]
+            response = team.bot.inspect_ban(user)
+
         else:
             response = utils.slack.SlackResponse()
             response.add_attachment(text="Command not available. Module has not been activated for this subreddit",

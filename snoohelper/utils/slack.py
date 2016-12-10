@@ -195,7 +195,7 @@ class SlackResponse:
     def set_replace_original(self, value):
         self.response_dict['replace_original'] = value
 
-    def add_attachment(self, title=None, text=None, fallback=None, callback_id=None, color=None,
+    def add_attachment(self, title=None, text=None, fallback=None, callback_id=None, color='#5c96ab',
                        title_link=None, footer=None,
                        image_url=None, author_name=None, ts=None):
 
