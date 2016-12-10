@@ -21,6 +21,8 @@ class UserWarnings:
 
         if isinstance(user, str):
             user, _ = UserModel.get_or_create(username=user.lower(), subreddit=self.subreddit)
+            if user.warnings_muted:
+                return
 
         if user.removed_comments > self.comment_threshold:
             attachment = message.add_attachment(title="Warning regarding user /u/" + user.username,
