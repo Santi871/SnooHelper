@@ -72,19 +72,18 @@ def get_scopes(form_data):
     if "userwarnings" in form_data:
         scopes.append('modlog')
     if "flairenforce" in form_data:
+        scopes.append('flair')
         scopes.append('modflair')
         scopes.append('submit')
         scopes.append('report')
         scopes.append('modposts')
         scopes.append("privatemessages")
-    if "botbans" in form_data or "filters" in form_data and "modposts" not in scopes:
+    if "modposts" not in scopes and ("botbans" in form_data or "filters" in form_data):
         scopes.append("modposts")
     if "sendmodmail" in form_data and "privatemessages" not in scopes:
         scopes.append("privatemessages")
 
-    scopes = ','.join(scopes)
-    modules = ','.join(form_data)
-    return scopes, modules
+    return scopes, form_data
 
 
 class AlreadyDoneHelper:

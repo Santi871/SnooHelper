@@ -1,10 +1,16 @@
 <!DOCTYPE html>
-<html lang="en">
-<head>
+<html lang="en-us">
+  <head>
     <meta charset="UTF-8">
-    <title>Title</title>
-</head>
-<body>
+    <title>SnooHelper</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="theme-color" content="#157878">
+    <link rel= "stylesheet" href= "{{ url_for('static',filename='css/normalize.css') }}">
+    <link href='https://fonts.googleapis.com/css?family=Open+Sans:400,700' rel='stylesheet' type='text/css'>
+    <link rel= "stylesheet" href= "{{ url_for('static',filename='css/cayman.css') }}">
+  </head>
+  <section class="page-header">
+ <body>
  <h1>Select Modules</h1>
   <form action="" method="post" name="modulesselect">
       {{ form.hidden_tag() }}
@@ -15,4 +21,5 @@
       <p><input type="submit" value="Send"></p>
   </form>
 </body>
+  </section>
 </html>

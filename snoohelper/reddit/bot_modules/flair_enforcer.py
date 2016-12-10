@@ -3,6 +3,7 @@ import praw
 import praw.exceptions
 from snoohelper.database.models import UnflairedSubmissionModel
 import time
+from peewee import DoesNotExist
 
 
 class FlairEnforcer:
@@ -203,7 +204,7 @@ class UnflairedSubmission:
                 return True
             else:
                 return False
-        except AttributeError:
+        except (AttributeError, UnflairedSubmissionModel.DoesNotExist, DoesNotExist):
             return False
 
 

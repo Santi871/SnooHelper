@@ -56,8 +56,8 @@ def create_app(teams_controller, handler):
             team_name = request.cookies.get('slack_team_name')
             scopes, modules = snoohelper.utils.reddit.get_scopes(form_data)
 
-            slack_teams_controller.teams[team_name].set("modules", modules)
-            slack_teams_controller.teams[team_name].set("scopes", scopes)
+            slack_teams_controller.teams[team_name].set("modules", ','.join(modules))
+            slack_teams_controller.teams[team_name].set("scopes", ','.join(scopes))
 
             state = ''.join(random.SystemRandom().choice(string.ascii_uppercase + string.digits) for _ in range(8))
             r = praw.Reddit(user_agent="Snoohelper 0.3 by /u/Santi871 - authorization module",
@@ -106,7 +106,6 @@ def create_app(teams_controller, handler):
             if team_name is None:
                 return "There was an error processing your request, please try again."
 
-            slack_teams_controller.remove_team(team_name)
             slack_teams_controller.teams[team_name].set("subreddit", subreddit)
             slack_teams_controller.add_bot(team_name)
 
