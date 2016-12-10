@@ -511,7 +511,10 @@ class SnooHelperBot:
         while not self.halt:
             try:
                 if self.user_warnings is not None:
-                    self.scan_modlog()
+                    try:
+                        self.scan_modlog()
+                    except TypeError:
+                        pass
 
                 if self.user_warnings is not None or self.botbans or self.flair_enforcer is not None:
                     self.scan_submissions()
@@ -529,6 +532,3 @@ class SnooHelperBot:
                 print(traceback.format_exc())
                 time.sleep(5)
                 continue
-
-
-
