@@ -19,6 +19,7 @@ class Filter:
             self.filter_string = self.filter_string.replace('"', "")
             self.filter_string = self.filter_string.replace("'", "")
             self.split_regex = self.filter_string.split(',')
+        self.save()
 
     def save(self):
         db.connect()
@@ -33,7 +34,7 @@ class Filter:
         db.close()
 
     def has_expired(self):
-        if time.time() > self.expires:
+        if time.time() > self.expires and self.expires:
             return True
         return False
 
@@ -64,6 +65,7 @@ class FiltersController:
     def add_filter(self, filter_string, use_regex, expires):
         filter_obj = Filter(filter_string=filter_string, use_regex=use_regex, subreddit=self.subreddit, expires=expires)
         self.filters.append(filter_obj)
+        return filter_obj
 
     def remove_filter(self, filter_string):
         filter_obj = FilterModel.get(filter_string=filter_string, subreddit=self.subreddit)

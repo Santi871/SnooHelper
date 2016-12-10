@@ -26,8 +26,9 @@ class SubmissionModel(BaseModel):
     submission_id = TextField()
     sticky_cmt_id = TextField(null=True)
     lock_type = TextField(null=True)
-    lock_remaining = TimestampField(default=0)
-    remove_remaining = TimestampField(default=0)
+    unlock_at = TimestampField(default=0)
+    approve_at = TimestampField(default=0)
+    lock_at = TimestampField(default=0)
     subreddit = TextField()
 
 

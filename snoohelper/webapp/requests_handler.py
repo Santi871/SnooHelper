@@ -1,6 +1,7 @@
 import snoohelper.utils as utils
 import snoohelper.utils.exceptions
 import snoohelper.utils.slack
+import time
 
 
 class RequestsHandler:
@@ -54,6 +55,50 @@ class RequestsHandler:
 
         elif slack_request.command == '/importbotbans' and "botbans" in team.modules:
             team.bot.import_botbans(slack_request.text, slack_request)
+        elif slack_request.command == '/exportbotbans' and "botbans" in team.modules:
+            response = team.bot.export_botbans()
+
+        elif slack_request.command == "/filter" and "filters" in team.modules:
+            expires = int(slack_request.command_args[0])
+            if isinstance(expires, int):
+                expires = (expires * 86400) + time.time()
+                filter_string = ' '.join(slack_request.command_args[1:])
+                team.bot.add_filter(filter_string, expires=expires, use_regex=False)
+                response = utils.slack.SlackResponse("Filter created successfully.")
+            else:
+                response = utils.slack.SlackResponse()
+                response.add_attachment(text="Error: first argument must be expiry time in days", color='danger')
+
+        elif slack_request.command == "/regexfilter" and "filters" in team.modules:
+            expires = int(slack_request.command_args[0])
+            if isinstance(expires, int):
+                expires = (expires * 86400) + time.time()
+                filter_string = ' '.join(slack_request.command_args[1:])
+                team.bot.add_filter(filter_string, expires=expires, use_regex=True)
+                response = utils.slack.SlackResponse("Filter created successfully.")
+            else:
+                response = utils.slack.SlackResponse()
+                response.add_attachment(text="Error: first argument must be expiry time in days", color='danger')
+
+        elif slack_request.command == "/lockin":
+            hours = int(slack_request.command_args[0])
+            submission_id = slack_request.command_args[1]
+            response = team.bot.add_timed_submission(submission_id, "lock", hours)
+
+        elif slack_request.command == "/unlockin":
+            hours = int(slack_request.command_args[0])
+            submission_id = slack_request.command_args[1]
+            response = team.bot.add_timed_submission(submission_id, "unlock", hours)
+
+        elif slack_request.command == "/approvein":
+            hours = int(slack_request.command_args[0])
+            submission_id = slack_request.command_args[1]
+            response = team.bot.add_timed_submission(submission_id, "approve", hours)
+
+        elif slack_request.command == "/removereplies":
+            comment_id = slack_request.command_args[0]
+            response = team.bot.add_watched_comment(comment_id)
+
         else:
             response = utils.slack.SlackResponse()
             response.add_attachment(text="Command not available. Module has not been activated for this subreddit",

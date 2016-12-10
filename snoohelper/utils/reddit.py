@@ -75,8 +75,9 @@ def get_scopes(form_data):
         scopes.append('modflair')
         scopes.append('submit')
         scopes.append('report')
+        scopes.append('modposts')
         scopes.append("privatemessages")
-    if "botbans" in form_data:
+    if "botbans" in form_data or "filters" in form_data and "modposts" not in scopes:
         scopes.append("modposts")
     if "sendmodmail" in form_data and "privatemessages" not in scopes:
         scopes.append("privatemessages")

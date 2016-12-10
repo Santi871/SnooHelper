@@ -10,6 +10,7 @@ import puni
 from peewee import OperationalError, IntegrityError, DoesNotExist, SqliteDatabase
 
 from snoohelper.database.models import UserModel, AlreadyDoneModel, SubmissionModel, UnflairedSubmissionModel, db, Proxy
+from snoohelper.database.models import FilterModel
 from snoohelper.utils.reddit import AlreadyDoneHelper, is_banned
 from snoohelper.utils.slack import own_thread
 import snoohelper.utils.slack
@@ -19,6 +20,7 @@ import snoohelper.utils.credentials
 from .bot_modules.flair_enforcer import FlairEnforcer
 from .bot_modules.summary_generator import SummaryGenerator
 from .bot_modules.user_warnings import UserWarnings
+from .bot_modules.filters import FiltersController
 
 REDDIT_APP_ID = snoohelper.utils.credentials.get_token("REDDIT_APP_ID", "credentials")
 REDDIT_APP_SECRET = snoohelper.utils.credentials.get_token("REDDIT_APP_SECRET", "credentials")
@@ -37,6 +39,7 @@ class SnooHelperBot:
         if isinstance(db, Proxy):
             db.initialize(SqliteDatabase(db_name, threadlocals=True, check_same_thread=False, timeout=30))
             db.connect()
+            FilterModel.create_table(True)
 
             try:
                 db.create_tables(models=[UserModel, AlreadyDoneModel, SubmissionModel, UnflairedSubmissionModel])
@@ -84,6 +87,7 @@ class SnooHelperBot:
         self.watch_stickies = False
         self.un = None
         self.summary_generator = None
+        self.filters_controller = None
         users_tracked = False
 
         if 'botbans' in self.config.modules:
@@ -103,6 +107,8 @@ class SnooHelperBot:
         if "watchstickies" in self.config.modules:
             self.watch_stickies = True
 
+        if "filters" in self.config.modules:
+            self.filters_controller = FiltersController(self.subreddit_name)
         try:
             self.summary_generator = SummaryGenerator(self.subreddit_name, self.config.reddit_refresh_token,
                                                       spamcruncher=self.spam_cruncher, users_tracked=users_tracked,
@@ -214,6 +220,12 @@ class SnooHelperBot:
     def unmute_user_warnings(self, user):
         self.user_warnings.unmute_user_warnings(user, self.subreddit_name)
 
+    def add_filter(self, filter_string, use_regex, expires):
+        self.filters_controller.add_filter(filter_string, use_regex, expires)
+
+    def remove_filter(self, filter_string):
+        self.filters_controller.remove_filter(filter_string)
+
     @own_thread
     def quick_user_summary(self, user, request):
         response = self.summary_generator.generate_quick_summary(user)
@@ -229,6 +241,7 @@ class SnooHelperBot:
     def scan_submissions(self):
         db.connect()
         submissions = self.subreddit.new(limit=50)
+        self.check_timed_submissions()
         if self.flair_enforcer is not None:
             self.flair_enforcer.check_submissions()
 
@@ -240,6 +253,11 @@ class SnooHelperBot:
                 self.already_done_helper.add(submission.id, self.subreddit_name)
             except IntegrityError:
                 continue
+
+            if self.filters_controller is not None:
+                results = self.filters_controller.check(submission.title)
+                if results:
+                    self.subreddit.mod.remove(submission)
 
             try:
                 user = UserModel.get(UserModel.username == submission.author.name.lower() and
@@ -262,7 +280,7 @@ class SnooHelperBot:
         relevant_actions = ('removecomment', 'removelink', 'approvelink', 'approvecomment', 'banuser', 'sticky')
 
         db.connect()
-        modlog = list(subreddit.mod.log(limit=20))
+        modlog = list(subreddit.mod.log(limit=100))
         new_items = 0
 
         for item in modlog:
@@ -283,22 +301,6 @@ class SnooHelperBot:
                     user.approved_submissions += 1
                 elif item.action == 'approvecomment':
                     user.approved_comments += 1
-                elif item.action == 'sticky' and "watchstickies" in self.config.modules and \
-                        item.target_fullname.startswith('t1'):
-                    comment = self.thread_r.comment(item.target_fullname.strip("t1"))
-
-                    try:
-                        submission = comment.submission
-                    except praw.exceptions.PRAWException as e:
-                        print("PRAW Exception, " + str(e))
-
-                    try:
-                        if "flair" not in comment.body:
-                            SubmissionModel.create(submission_id=submission.id, sticky_cmt_id=comment.id,
-                                                   subreddit=submission.subreddit.display_name)
-                    except (TypeError, praw.exceptions.PRAWException) as e:
-                        print("PRAW Exception, " + str(e))
-
                 elif item.action == 'banuser':
                     try:
                         ban_length = int(re.findall('\d+', item.details)[0])
@@ -362,6 +364,85 @@ class SnooHelperBot:
                                 color='good')
         request.delayed_response(response)
 
+    def export_botbans(self):
+        exported_string = "["
+        db.connect()
+        for user in UserModel.select().where(UserModel.shadowbanned and UserModel.subreddit == self.subreddit_name):
+            s = "'{}',".format(user.username)
+            exported_string += s
+        db.close()
+        exported_string = exported_string[:-1] + "]"
+        return snoohelper.utils.slack.SlackResponse(exported_string)
+
+    def add_watched_comment(self, comment_id):
+        comment = self.r.comment(comment_id)
+        db.connect()
+        submission, _ = SubmissionModel.get_or_create(submission_id=comment.submission.id,
+                                                      subreddit=self.subreddit_name)
+        submission.sticky_cmt_id = comment.id
+        submission.save()
+        db.close()
+        response = snoohelper.utils.slack.SlackResponse("Will remove replies to comment: " + comment.id)
+        return response
+
+    def check_timed_submissions(self):
+        db.connect()
+        submissions = SubmissionModel.select().where(SubmissionModel.subreddit == self.subreddit_name and
+                                                     SubmissionModel.approve_at)
+        for submission in submissions:
+            if time.time() > submission.approve_at:
+                submission.delete_instance()
+                submission = self.r.submission(submission.submission_id)
+                self.subreddit.mod.approve(submission)
+                message = snoohelper.utils.slack.SlackResponse("Approved timed submission: " + submission.permalink())
+                self.webhook.send_message(message)
+
+        submissions = SubmissionModel.select().where(SubmissionModel.subreddit == self.subreddit_name and
+                                                     SubmissionModel.unlock_at)
+        for submission in submissions:
+            if time.time() > submission.approve_at:
+                submission.delete_instance()
+                submission = self.r.submission(submission.submission_id)
+                self.subreddit.mod.unlock(submission)
+                message = snoohelper.utils.slack.SlackResponse("Unlocked timed submission: " + submission.permalink())
+                self.webhook.send_message(message)
+
+        submissions = SubmissionModel.select().where(SubmissionModel.subreddit == self.subreddit_name and
+                                                     SubmissionModel.lock_at)
+        for submission in submissions:
+            if time.time() > submission.approve_at:
+                submission.delete_instance()
+                submission = self.r.submission(submission.submission_id)
+                self.subreddit.mod.lock(submission)
+                message = snoohelper.utils.slack.SlackResponse("Locked timed submission: " + submission.permalink())
+                self.webhook.send_message(message)
+        db.close()
+
+    def add_timed_submission(self, submission_id, action, hours):
+        db.connect()
+        response = None
+        if action == "approve":
+            submission = self.r.submission(submission_id)
+            self.subreddit.mod.remove(submission)
+            submission, _ = SubmissionModel.get_or_create(submission_id=submission_id, subreddit=self.subreddit_name)
+            submission.approve_at = hours * 3600 + time.time()
+            submission.save()
+            response = snoohelper.utils.slack.SlackResponse("Will approve in {} hours.".format(hours))
+        elif action == "unlock":
+            submission = self.r.submission(submission_id)
+            self.subreddit.mod.lock(submission)
+            submission, _ = SubmissionModel.get_or_create(submission_id=submission_id, subreddit=self.subreddit_name)
+            submission.unlock_at = hours * 3600 + time.time()
+            submission.save()
+            response = snoohelper.utils.slack.SlackResponse("Will unlock in {} hours.".format(hours))
+        elif action == "lock":
+            submission, _ = SubmissionModel.get_or_create(submission_id=submission_id, subreddit=self.subreddit_name)
+            submission.lock_at = hours * 3600 + time.time()
+            submission.save()
+            response = snoohelper.utils.slack.SlackResponse("Will lock in {} hours.".format(hours))
+        db.close()
+        return response
+
     def scan_comments(self):
         db.connect()
         comments = self.subreddit.comments(limit=200)
@@ -383,7 +464,7 @@ class SnooHelperBot:
                 self.subreddit.mod.remove(comment)
             if user.tracked:
                 self.user_warnings.send_warning(comment)
-            if self.watch_stickies and comment.parent_id in sticky_comments_ids:
+            if comment.parent_id in sticky_comments_ids:
                 self.subreddit.mod.remove(comment)
 
             self.user_warnings.check_user_offenses(user)
