@@ -37,6 +37,13 @@ class UnflairedSubmissionModel(BaseModel):
     subreddit = TextField()
 
 
+class FilterModel(BaseModel):
+    filter_string = TextField()
+    subreddit = TextField()
+    use_regex = BooleanField(default=False)
+    expires = TimestampField(default=0)
+
+
 class AlreadyDoneModel(BaseModel):
     thing_id = TextField(unique=True)
     timestamp = TimestampField()

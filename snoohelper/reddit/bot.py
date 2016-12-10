@@ -1,14 +1,13 @@
 import re
 import time
 from threading import Thread
-
+import traceback
 import imgurpython.helpers.error
 import praw
 import praw.exceptions
 import prawcore.exceptions
 import puni
 from peewee import OperationalError, IntegrityError, DoesNotExist, SqliteDatabase
-from retrying import retry
 
 from snoohelper.database.models import UserModel, AlreadyDoneModel, SubmissionModel, UnflairedSubmissionModel, db, Proxy
 from snoohelper.utils.reddit import AlreadyDoneHelper, is_banned
@@ -95,7 +94,8 @@ class SnooHelperBot:
             users_tracked = True
 
         if "flairenforce" in self.config.modules:
-            self.flair_enforcer = FlairEnforcer(self.r, self.subreddit_name)
+            sample_submission = list(self.subreddit.new(limit=1))[0]
+            self.flair_enforcer = FlairEnforcer(self.r, self.subreddit_name, sample_submission)
 
         if "usernotes" in self.config.modules:
             self.un = puni.UserNotes(self.r, self.subreddit)
@@ -340,11 +340,13 @@ class SnooHelperBot:
             response = snoohelper.utils.slack.SlackResponse("Message failed to send. Insufficient permissions.")
         request.delayed_response(response)
 
-    def import_botbans(self, botbans_string):
+    @own_thread
+    def import_botbans(self, botbans_string, request):
         botbans_string = botbans_string.replace("'", "")
         botbans_string = botbans_string.replace('"', "")
         botbans_string = botbans_string.replace("[", "")
         botbans_string = botbans_string.replace("]", "")
+        botbans_string = botbans_string.replace(" ", "")
         users = botbans_string.split(',')
         n = 0
         db.connect()
@@ -358,11 +360,11 @@ class SnooHelperBot:
         response = snoohelper.utils.slack.SlackResponse()
         response.add_attachment(text="Botbans imported successfully. Number of botbans imported: {}.".format(n),
                                 color='good')
-        return response
+        request.delayed_response(response)
 
     def scan_comments(self):
         db.connect()
-        comments = self.subreddit.comments(limit=100)
+        comments = self.subreddit.comments(limit=200)
         sticky_comments_ids = ["t1_" + submission.sticky_cmt_id for submission in SubmissionModel.select()]
 
         for comment in comments:
@@ -398,25 +400,29 @@ class SnooHelperBot:
         time.sleep(1800)
         return last_warned_modqueue
 
-    @retry
     def do_work(self):
         last_warned_modqueue = 0
         while not self.halt:
-            if "watchstickies" in self.config.modules or self.user_warnings is not None:
-                self.scan_modlog()
+            try:
+                if "watchstickies" in self.config.modules or self.user_warnings is not None:
+                    self.scan_modlog()
 
-            if self.user_warnings is not None or self.botbans or self.flair_enforcer is not None:
-                self.scan_submissions()
+                if self.user_warnings is not None or self.botbans or self.flair_enforcer is not None:
+                    self.scan_submissions()
 
-            if self.botbans or self.user_warnings:
-                self.scan_comments()
+                if self.botbans or self.user_warnings:
+                    self.scan_comments()
 
-            if "watchqueues" in self.config.modules:
-                last_warned_modqueue = self.monitor_queue(last_warned_modqueue)
+                if "watchqueues" in self.config.modules:
+                    last_warned_modqueue = self.monitor_queue(last_warned_modqueue)
 
-            if self.db_name == "snoohelper_test.db":
-                break
-            time.sleep(20)
+                if self.db_name == "snoohelper_test.db":
+                    break
+                time.sleep(20)
+            except:
+                traceback.format_exc()
+                time.sleep(5)
+                continue
 
 
 

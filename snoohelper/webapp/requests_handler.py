@@ -25,7 +25,10 @@ class RequestsHandler:
         """
 
         response = utils.slack.SlackResponse("Processing your request... please allow a few seconds.")
-        user = slack_request.command_args[0]
+        try:
+            user = slack_request.command_args[0]
+        except IndexError:
+            user = None
         team = self.teams_controller.lookup_team_by_id(slack_request.team_id)
         if team is None:
             response = utils.slack.SlackResponse()
@@ -45,12 +48,12 @@ class RequestsHandler:
             team.bot.message_modmail(' '.join(slack_request.command_args), slack_request.user, slack_request)
 
         elif slack_request.command == '/restartbot':
-            response = utils.slack.SlackRequest("Attempting to restart bot.")
+            response = utils.slack.SlackResponse("Attempting to restart bot.")
             self.teams[team.team_name].bot.halt = True
             self.teams_controller.add_bot(team.team_name)
 
         elif slack_request.command == '/importbotbans' and "botbans" in team.modules:
-            response = team.bot.import_botbans(slack_request.text)
+            team.bot.import_botbans(slack_request.text, slack_request)
         else:
             response = utils.slack.SlackResponse()
             response.add_attachment(text="Command not available. Module has not been activated for this subreddit",

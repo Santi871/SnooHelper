@@ -5,7 +5,9 @@ from snoohelper.utils.credentials import get_token
 from snoohelper.reddit.bot_modules.flair_enforcer import UnflairedSubmission
 from snoohelper.webapp.requests_handler import RequestsHandler
 from snoohelper.webapp.webapp import create_app
+import snoohelper.utils.exceptions
 import snoohelper.utils.slack
+import time
 
 
 def create_dummy_command_request(command):
@@ -35,15 +37,18 @@ class SnooHelperTest(unittest.TestCase):
             cls.team_name = "SnooHelper Testing"
             cls.teams_controller = SlackTeamsController("teams_test.ini", "snoohelper_test.db")
         cls.bot = cls.teams_controller.teams[cls.team_name].bot
-        cls.submission = cls.bot.r.submission("5gk734")
+        cls.submission = cls.bot.subreddit.submit("Unflair test", selftext="hi", send_replies=False)
         cls.requests_handler = RequestsHandler(cls.teams_controller)
         app = create_app(cls.teams_controller, cls.requests_handler)
         cls.app = app.test_client()
         cls.app.testing = True
 
     def test_botban(self):
-        response = self.bot.botban("santi871", "santi871")
-        self.assertTrue(isinstance(response, snoohelper.utils.slack.SlackResponse))
+        try:
+            response = self.bot.botban("santi871", "santi871")
+            self.assertTrue(isinstance(response, snoohelper.utils.slack.SlackResponse))
+        except snoohelper.utils.exceptions.UserAlreadyBotbanned:
+            pass
 
     def test_unbotban(self):
         response = self.bot.unbotban("santi871", "santi871")
@@ -67,8 +72,13 @@ class SnooHelperTest(unittest.TestCase):
         self.assertTrue(isinstance(response, snoohelper.utils.slack.SlackResponse))
 
     def test_add_unflaired_submission(self):
-        submission = self.bot.flair_enforcer.add_submission(self.submission)
+        submission, comment = self.bot.flair_enforcer.add_submission(self.submission, force=True)
         self.assertTrue(isinstance(submission, UnflairedSubmission))
+        comment.reply("asd1")
+        time.sleep(2)
+
+    def test_check_submissions(self):
+        self.bot.flair_enforcer.check_submissions(force_check=True)
 
     def test_quick_summary(self):
         self.bot.summary_generator.generate_quick_summary('santi871')
