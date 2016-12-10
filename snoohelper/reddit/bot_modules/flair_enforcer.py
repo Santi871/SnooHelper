@@ -2,6 +2,7 @@ import datetime
 import praw
 import praw.exceptions
 from snoohelper.database.models import UnflairedSubmissionModel
+import time
 
 
 class FlairEnforcer:
@@ -40,7 +41,9 @@ class FlairEnforcer:
             submission = self.r.submission(unflaired_submission.submission_id)
             unflaired_submission_obj = UnflairedSubmission(self.r, submission, unflaired_submission.comment_id,
                                                            self.comments_flairing)
-            self.unflaired_submissions.append(unflaired_submission_obj)
+            deleted = unflaired_submission_obj.delete_if_overtime()
+            if not deleted:
+                self.unflaired_submissions.append(unflaired_submission_obj)
 
     def check_submissions(self, force_approve=False, force_check=False):
         """
@@ -179,7 +182,6 @@ class UnflairedSubmission:
         try:
             self.sub_mod.remove(self.comment)
         except AttributeError:
-            print("does not exist")
             pass
 
         try:
@@ -190,9 +192,7 @@ class UnflairedSubmission:
             pass
 
     def delete_if_overtime(self):
-        submission_time = datetime.datetime.fromtimestamp(self.submission.created)
-        d = datetime.datetime.now() - submission_time
-        delta_time = d.total_seconds()
+        delta_time = time.time() - self.submission.created_utc
 
         try:
             if delta_time >= 13600:

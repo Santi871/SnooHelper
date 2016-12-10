@@ -83,25 +83,25 @@ class RequestsHandler:
         elif slack_request.command == "/lockin":
             hours = int(slack_request.command_args[0])
             submission_id = slack_request.command_args[1]
-            response = team.bot.add_timed_submission(submission_id, "lock", hours)
+            team.bot.add_timed_submission(submission_id, "lock", hours)
 
         elif slack_request.command == "/unlockin":
             hours = int(slack_request.command_args[0])
             submission_id = slack_request.command_args[1]
-            response = team.bot.add_timed_submission(submission_id, "unlock", hours)
+            team.bot.add_timed_submission(submission_id, "unlock", hours)
 
         elif slack_request.command == "/approvein":
             hours = int(slack_request.command_args[0])
             submission_id = slack_request.command_args[1]
-            response = team.bot.add_timed_submission(submission_id, "approve", hours)
+            team.bot.add_timed_submission(submission_id, "approve", hours)
 
         elif slack_request.command == "/removereplies":
             comment_id = slack_request.command_args[0]
-            response = team.bot.add_watched_comment(comment_id)
+            team.bot.add_watched_comment(comment_id)
 
         elif slack_request.command == "/inspectban":
             user = slack_request.command_args[0]
-            response = team.bot.inspect_ban(user)
+            team.bot.inspect_ban(user, slack_request)
 
         else:
             response = utils.slack.SlackResponse()

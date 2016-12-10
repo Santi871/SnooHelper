@@ -41,9 +41,9 @@ class SnooHelperBot:
             db.initialize(SqliteDatabase(db_name, threadlocals=True, check_same_thread=False, timeout=30))
             db.connect()
             FilterModel.create_table(True)
-
+            SubmissionModel.create_table(True)
             try:
-                db.create_tables(models=[UserModel, AlreadyDoneModel, SubmissionModel, UnflairedSubmissionModel])
+                db.create_tables(models=[UserModel, AlreadyDoneModel, UnflairedSubmissionModel])
             except OperationalError:
                 pass
             db.close()
@@ -100,13 +100,11 @@ class SnooHelperBot:
 
         if "flairenforce" in self.config.modules:
             sample_submission = list(self.subreddit.new(limit=1))[0]
+            print("starting fe")
             self.flair_enforcer = FlairEnforcer(self.r, self.subreddit_name, sample_submission)
 
         if "usernotes" in self.config.modules:
             self.un = puni.UserNotes(self.r, self.subreddit)
-
-        if "watchstickies" in self.config.modules:
-            self.watch_stickies = True
 
         if "filters" in self.config.modules:
             self.filters_controller = FiltersController(self.subreddit_name)
@@ -215,19 +213,19 @@ class SnooHelperBot:
             response.add_attachment(text='Error: user tracking is not enabled for this team.', color='danger')
         return response
 
-    def inspect_ban(self, user):
+    @own_thread
+    def inspect_ban(self, user, request):
         response = snoohelper.utils.slack.SlackResponse()
         try:
             banned_user = list(self.subreddit.banned(redditor=user))[0]
         except IndexError:
             response.add_attachment(text="No bans found for /u/{}.".format(user), color='danger')
-            return response
+            request.delayed_response(response)
+            return
 
         attachment = response.add_attachment(title="Found a ban", text=banned_user.note)
         attachment.add_field("Ban date", value=str(datetime.datetime.fromtimestamp(banned_user.date)))
-
-
-
+        request.delayed_response(response)
 
     def mute_user_warnings(self, user):
         self.user_warnings.mute_user_warnings(user, self.subreddit_name)
@@ -261,6 +259,7 @@ class SnooHelperBot:
             self.flair_enforcer.check_submissions()
 
         for submission in submissions:
+            print(submission.link_flair_text)
             if self.flair_enforcer is not None and submission.link_flair_text is None:
                 self.flair_enforcer.add_submission(submission)
 
@@ -292,7 +291,7 @@ class SnooHelperBot:
 
     def scan_modlog(self):
         subreddit = self.subreddit
-        relevant_actions = ('removecomment', 'removelink', 'approvelink', 'approvecomment', 'banuser', 'sticky')
+        relevant_actions = ('removecomment', 'removelink', 'approvelink', 'approvecomment', 'banuser')
 
         db.connect()
         modlog = list(subreddit.mod.log(limit=100))
@@ -389,7 +388,8 @@ class SnooHelperBot:
         exported_string = exported_string[:-1] + "]"
         return snoohelper.utils.slack.SlackResponse(exported_string)
 
-    def add_watched_comment(self, comment_id):
+    @own_thread
+    def add_watched_comment(self, comment_id, request):
         comment = self.r.comment(comment_id)
         db.connect()
         submission, _ = SubmissionModel.get_or_create(submission_id=comment.submission.id,
@@ -398,42 +398,43 @@ class SnooHelperBot:
         submission.save()
         db.close()
         response = snoohelper.utils.slack.SlackResponse("Will remove replies to comment: " + comment.id)
-        return response
+        request.delayed_response(response)
 
     def check_timed_submissions(self):
         db.connect()
         submissions = SubmissionModel.select().where(SubmissionModel.subreddit == self.subreddit_name and
                                                      SubmissionModel.approve_at)
         for submission in submissions:
-            if time.time() > submission.approve_at:
+            if time.time() > submission.approve_at.timestamp():
                 submission.delete_instance()
                 submission = self.r.submission(submission.submission_id)
                 self.subreddit.mod.approve(submission)
-                message = snoohelper.utils.slack.SlackResponse("Approved timed submission: " + submission.permalink())
+                message = snoohelper.utils.slack.SlackResponse("Approved timed submission: " + submission.permalink)
                 self.webhook.send_message(message)
 
         submissions = SubmissionModel.select().where(SubmissionModel.subreddit == self.subreddit_name and
                                                      SubmissionModel.unlock_at)
         for submission in submissions:
-            if time.time() > submission.approve_at:
+            if time.time() > submission.approve_at.timestamp():
                 submission.delete_instance()
                 submission = self.r.submission(submission.submission_id)
                 self.subreddit.mod.unlock(submission)
-                message = snoohelper.utils.slack.SlackResponse("Unlocked timed submission: " + submission.permalink())
+                message = snoohelper.utils.slack.SlackResponse("Unlocked timed submission: " + submission.permalink)
                 self.webhook.send_message(message)
 
         submissions = SubmissionModel.select().where(SubmissionModel.subreddit == self.subreddit_name and
                                                      SubmissionModel.lock_at)
         for submission in submissions:
-            if time.time() > submission.approve_at:
+            if time.time() > submission.approve_at.timestamp():
                 submission.delete_instance()
                 submission = self.r.submission(submission.submission_id)
                 self.subreddit.mod.lock(submission)
-                message = snoohelper.utils.slack.SlackResponse("Locked timed submission: " + submission.permalink())
+                message = snoohelper.utils.slack.SlackResponse("Locked timed submission: " + submission.permalink)
                 self.webhook.send_message(message)
         db.close()
 
-    def add_timed_submission(self, submission_id, action, hours):
+    @own_thread
+    def add_timed_submission(self, submission_id, action, hours, request):
         db.connect()
         response = None
         if action == "approve":
@@ -456,12 +457,13 @@ class SnooHelperBot:
             submission.save()
             response = snoohelper.utils.slack.SlackResponse("Will lock in {} hours.".format(hours))
         db.close()
-        return response
+        request.delayed_response(response)
 
     def scan_comments(self):
         db.connect()
-        comments = self.subreddit.comments(limit=200)
-        sticky_comments_ids = ["t1_" + submission.sticky_cmt_id for submission in SubmissionModel.select()]
+        comments = self.subreddit.comments(limit=100)
+        sticky_comments_ids = ["t1_" + submission.sticky_cmt_id for submission in
+                               SubmissionModel.select().where(SubmissionModel.sticky_cmt_id)]
 
         for comment in comments:
             try:
@@ -493,14 +495,13 @@ class SnooHelperBot:
                                    color='warning')
             last_warned_modqueue = time.time()
             self.webhook.send_message(message)
-        time.sleep(1800)
         return last_warned_modqueue
 
     def do_work(self):
         last_warned_modqueue = 0
         while not self.halt:
             try:
-                if "watchstickies" in self.config.modules or self.user_warnings is not None:
+                if self.user_warnings is not None:
                     self.scan_modlog()
 
                 if self.user_warnings is not None or self.botbans or self.flair_enforcer is not None:
@@ -516,7 +517,7 @@ class SnooHelperBot:
                     break
                 time.sleep(20)
             except:
-                traceback.format_exc()
+                print(traceback.format_exc())
                 time.sleep(5)
                 continue
 

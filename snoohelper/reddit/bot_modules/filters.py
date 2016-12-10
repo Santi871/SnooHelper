@@ -60,7 +60,7 @@ class FiltersController:
 
         for filter_instance in FilterModel.select().where(FilterModel.subreddit == subreddit):
             self.add_filter(filter_string=filter_instance.filter_string, use_regex=filter_instance.use_regex,
-                            expires=filter_instance.expires)
+                            expires=filter_instance.expires.timestamp())
 
     def add_filter(self, filter_string, use_regex, expires):
         filter_obj = Filter(filter_string=filter_string, use_regex=use_regex, subreddit=self.subreddit, expires=expires)
