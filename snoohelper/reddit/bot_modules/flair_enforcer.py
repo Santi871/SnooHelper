@@ -60,12 +60,17 @@ class FlairEnforcer:
                         comment = self.r.comment(reply.id)
                         submission = comment.submission
                         unflaired_submission = None
+
                         for unflaired_submission_instance in self.unflaired_submissions:
-                            if unflaired_submission_instance.submission == submission.id or\
-                                unflaired_submission_instance.submission.id == submission.id or\
-                                    unflaired_submission_instance.comment.id == comment.id:
-                                unflaired_submission = unflaired_submission_instance
-                                break
+                            try:
+                                if unflaired_submission_instance.submission == submission.id or\
+                                    unflaired_submission_instance.submission.id == submission.id or\
+                                        unflaired_submission_instance.comment.id == comment.id:
+                                    unflaired_submission = unflaired_submission_instance
+                                    break
+                            except AttributeError:
+                                continue
+
                         if unflaired_submission is None:
                             reply.mark_read()
                             continue
