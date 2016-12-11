@@ -527,7 +527,8 @@ class SnooHelperBot:
                 if self.db_name == "snoohelper_test.db":
                     break
                 time.sleep(20)
-            except (requests.exceptions.ConnectionError, requests.exceptions.RequestException):
+            except (requests.exceptions.ConnectionError, requests.exceptions.RequestException,
+                    prawcore.exceptions.RequestException):
                 time.sleep(2)
                 continue
             except:
