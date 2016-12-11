@@ -505,7 +505,6 @@ class SnooHelperBot:
             self.webhook.send_message(message)
         return last_warned_modqueue
 
-    @retry(retry_on_exception=retry_if_connection_error)
     def do_work(self):
         last_warned_modqueue = 0
         while not self.halt:
@@ -528,6 +527,9 @@ class SnooHelperBot:
                 if self.db_name == "snoohelper_test.db":
                     break
                 time.sleep(20)
+            except (requests.exceptions.ConnectionError, requests.exceptions.RequestException):
+                time.sleep(2)
+                continue
             except:
                 print(traceback.format_exc())
                 time.sleep(5)
