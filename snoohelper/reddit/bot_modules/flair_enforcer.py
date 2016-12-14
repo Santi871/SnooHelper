@@ -135,6 +135,7 @@ class UnflairedSubmission:
     def __init__(self, r, submission, comment=None, comments_flairing=True):
         self.r = r
         self.submission = submission
+        self.submission_fetched = False
         self.sub = submission.subreddit.display_name
         self.sub_mod = submission.subreddit.mod
         self.comment = comment
@@ -149,6 +150,18 @@ class UnflairedSubmission:
             self.report = submission.mod_reports[0][0]
         except IndexError:
             self.report = None
+
+    @property
+    def submission(self):
+        if not self.submission_fetched:
+            self.submission_fetched = True
+            return self.r.submission(self.submission)
+        else:
+            return self.submission
+
+    @submission.setter
+    def submission(self, v):
+        self.submission = v
 
     def remove_and_comment(self):
         s1 = self.submission.author.name
