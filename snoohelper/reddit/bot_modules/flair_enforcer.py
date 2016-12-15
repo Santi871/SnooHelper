@@ -125,7 +125,8 @@ class FlairEnforcer:
         dt = datetime.datetime.utcfromtimestamp(submission.created_utc)
 
         if (datetime.datetime.utcnow() - dt).total_seconds() > self.grace_period or force:
-            unflaired_submission_obj = UnflairedSubmission(self.r, submission, comments_flairing=self.comments_flairing)
+            unflaired_submission_obj = UnflairedSubmission(self.r, submission, self.sub_object, self.flairs,
+                                                           comments_flairing=self.comments_flairing)
             comment = unflaired_submission_obj.remove_and_comment()
             self.unflaired_submissions.append(unflaired_submission_obj)
             return unflaired_submission_obj, comment
