@@ -147,7 +147,7 @@ class UnflairedSubmission:
 
         try:
             self.report = submission.mod_reports[0][0]
-        except IndexError:
+        except (IndexError, AttributeError):
             self.report = None
 
     @property
