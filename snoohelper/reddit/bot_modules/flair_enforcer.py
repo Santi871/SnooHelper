@@ -39,7 +39,7 @@ class FlairEnforcer:
         Get tracked unflaired submissions from database
         """
         for unflaired_submission in UnflairedSubmissionModel.select():
-            unflaired_submission_obj = UnflairedSubmission(self.r, unflaired_submission.submission_id,
+            unflaired_submission_obj = UnflairedSubmission(self.r, unflaired_submission.submission_id, self.subreddit,
                                                            unflaired_submission.comment_id,
                                                            self.comments_flairing)
             deleted = unflaired_submission_obj.delete_if_overtime()
@@ -132,11 +132,11 @@ class FlairEnforcer:
 
 class UnflairedSubmission:
 
-    def __init__(self, r, submission, comment=None, comments_flairing=True):
+    def __init__(self, r, submission, subreddit, comment=None, comments_flairing=True):
         self.r = r
         self._submission = submission
-        self.sub = submission.subreddit.display_name
-        self.sub_mod = submission.subreddit.mod
+        self.sub = subreddit
+        self.sub_mod = subreddit.mod
         self.comment = comment
         self.fullname = self.submission.fullname
         self.flairs = [(flair['flair_text'], flair['flair_template_id']) for flair in self.submission.flair.choices()]
