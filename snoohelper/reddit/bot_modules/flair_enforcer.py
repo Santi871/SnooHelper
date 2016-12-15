@@ -40,6 +40,7 @@ class FlairEnforcer:
         """
         for unflaired_submission in UnflairedSubmissionModel.select():
             unflaired_submission_obj = UnflairedSubmission(self.r, unflaired_submission.submission_id, self.sub_object,
+                                                           self.flairs,
                                                            unflaired_submission.comment_id,
                                                            self.comments_flairing)
             deleted = unflaired_submission_obj.delete_if_overtime()
@@ -132,14 +133,13 @@ class FlairEnforcer:
 
 class UnflairedSubmission:
 
-    def __init__(self, r, submission, subreddit, comment=None, comments_flairing=True):
+    def __init__(self, r, submission, subreddit, flairs, comment=None, comments_flairing=True):
         self.r = r
         self._submission = submission
         self.sub = subreddit
         self.sub_mod = subreddit.mod
         self.comment = comment
-        self.fullname = self.submission.fullname
-        self.flairs = [(flair['flair_text'], flair['flair_template_id']) for flair in self.submission.flair.choices()]
+        self.flairs = flairs
         self.comments_flairing = comments_flairing
 
         if comment is not None:
