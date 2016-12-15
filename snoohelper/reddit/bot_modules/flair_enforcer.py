@@ -39,8 +39,8 @@ class FlairEnforcer:
         Get tracked unflaired submissions from database
         """
         for unflaired_submission in UnflairedSubmissionModel.select():
-            submission = self.r.submission(unflaired_submission.submission_id)
-            unflaired_submission_obj = UnflairedSubmission(self.r, submission, unflaired_submission.comment_id,
+            unflaired_submission_obj = UnflairedSubmission(self.r, unflaired_submission.submission_id,
+                                                           unflaired_submission.comment_id,
                                                            self.comments_flairing)
             deleted = unflaired_submission_obj.delete_if_overtime()
             if not deleted:
