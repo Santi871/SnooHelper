@@ -165,7 +165,7 @@ class UnflairedSubmission:
 
     def remove_and_comment(self):
         s1 = self.submission.author.name
-        s2 = 'https://www.reddit.com/message/compose/?to=/r/' + self.sub
+        s2 = 'https://www.reddit.com/message/compose/?to=/r/' + self.sub.display_name
 
         comment = generate_flair_comment(s1, s2, self.flairs, self.comments_flairing)
 
