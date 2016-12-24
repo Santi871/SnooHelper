@@ -225,7 +225,9 @@ def generate_flair_comment(s1, s2, flairs, comments_flairing=True):
 
     s3 = flairs[0][0]
     if comments_flairing:
-        comment = ("""Hi /u/%s,
+        comment = ("""**Please read this message in its entirety before contacting the moderators.**
+
+Hi /u/%s,
 
 It looks like you haven't assigned a category flair to your question, so it has been automatically removed.
 You can assign a category flair to your question by clicking the *flair* button under it.
@@ -247,7 +249,9 @@ will be deleted.
 """) % (s1, s3, s3.lower())
 
     else:
-        comment = ("""Hi /u/%s,
+        comment = ("""**Please read this message in its entirety before contacting the moderators.**
+
+Hi /u/%s,
 
 It looks like you haven't assigned a category flair to your question, so it has been automatically removed.
 You can assign a category flair to your question by clicking the *flair* button under it.
