@@ -41,7 +41,7 @@ def retry_if_connection_error(exc):
 
 class SnooHelperBot:
 
-    def __init__(self, team, db_name):
+    def __init__(self, team, db_name, user_summaries=True):
         self.config = team
         if db_name == "snoohelper_test.db":
             user_agent = "Snoohelper 0.3 by /u/Santi871 - unittesting"
@@ -62,6 +62,7 @@ class SnooHelperBot:
         self.db_name = db_name
         self.halt = False
         self.webhook = self.config.webhook
+        self.user_summaries = user_summaries
 
         if self.config.reddit_refresh_token:
             self.r = praw.Reddit(user_agent=user_agent,
@@ -122,15 +123,17 @@ class SnooHelperBot:
 
         if "filters" in self.config.modules:
             self.filters_controller = FiltersController(self.subreddit_name)
-        try:
-            self.summary_generator = SummaryGenerator(self.subreddit_name, self.config.reddit_refresh_token,
-                                                      spamcruncher=self.spam_cruncher, users_tracked=users_tracked,
-                                                      botbans=self.botbans, un=self.un)
 
-        except imgurpython.helpers.error.ImgurClientError:
-            print("IMGUR service unavailable")
-            print("Summary generation not available")
-            raise
+        if "summaries" in self.config.modules:
+            try:
+                self.summary_generator = SummaryGenerator(self.subreddit_name, self.config.reddit_refresh_token,
+                                                          spamcruncher=self.spam_cruncher, users_tracked=users_tracked,
+                                                          botbans=self.botbans, un=self.un)
+
+            except imgurpython.helpers.error.ImgurClientError:
+                print("IMGUR service unavailable")
+                print("Summary generation not available")
+                raise
 
         print("Done initializing | " + self.config.subreddit)
         self.do_work()
