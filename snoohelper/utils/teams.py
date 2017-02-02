@@ -87,7 +87,7 @@ class SlackTeamsController:
     Utility class for easy management of SlackTeams. Stores current teams in a dict and implements methods for adding
     and removing teams as well as adding a Reddit bot to a team
     """
-    def __init__(self, filename, db_name, vars_from_env=False):
+    def __init__(self, filename, db_name, vars_from_env=False, build_teams=True):
         """
         Construct the SlackTeams already present in the teams .ini file as well as their respective bots
         Holds current SlackTeams in self.teams dict, keys being the team's name
@@ -96,10 +96,16 @@ class SlackTeamsController:
         self.teams = dict()
         self.filename = filename
         self.db_name = db_name
+        self.vars_from_env = vars_from_env
 
-        if not vars_from_env:
+        if build_teams:
+            self.build_teams()
+
+    def build_teams(self):
+
+        if not self.vars_from_env:
             config = configparser.ConfigParser()
-            config.read(filename)
+            config.read(self.filename)
 
             for section in config.sections():
                 team_id = config[section]["team_id"]
@@ -125,7 +131,6 @@ class SlackTeamsController:
             modules = os.environ['modules']
             scopes = os.environ['scopes']
             reddit_refresh_token = os.environ['reddit_refresh_token']
-            sleep = os.environ['sleep']
             print(team_name)
             team = SlackTeam(self.filename, team_name, team_id, access_token, webhook_url, subreddit, modules,
                              scopes, reddit_refresh_token, save_to_disk=False)

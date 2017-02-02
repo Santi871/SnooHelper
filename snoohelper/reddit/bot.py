@@ -86,7 +86,7 @@ class SnooHelperBot:
         self.already_done_helper = AlreadyDoneHelper()
 
         if db_name != "snoohelper_test.db":
-            t = Thread(target=self._init_modules, daemon=True)
+            t = Thread(target=self._init_modules, daemon=False)
             t.start()
         else:
             self._init_modules()
