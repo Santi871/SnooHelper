@@ -24,6 +24,7 @@ from .bot_modules.flair_enforcer import FlairEnforcer
 from .bot_modules.summary_generator import SummaryGenerator
 from .bot_modules.user_warnings import UserWarnings
 from .bot_modules.filters import FiltersController
+from .bot_modules.floodgate import Floodgate
 
 REDDIT_APP_ID = snoohelper.utils.credentials.get_token("REDDIT_APP_ID", "credentials")
 REDDIT_APP_SECRET = snoohelper.utils.credentials.get_token("REDDIT_APP_SECRET", "credentials")
@@ -99,6 +100,7 @@ class SnooHelperBot:
         self.un = None
         self.summary_generator = None
         self.filters_controller = None
+        self.floodgate = None
         users_tracked = False
 
         if 'botbans' in self.config.modules:
@@ -114,6 +116,9 @@ class SnooHelperBot:
 
         if "usernotes" in self.config.modules:
             self.un = puni.UserNotes(self.r, self.subreddit)
+
+        if "floodgate" in self.config.modules:
+            self.floodgate = Floodgate(faq_term_count_threshold=2)
 
         if "filters" in self.config.modules:
             self.filters_controller = FiltersController(self.subreddit_name)
@@ -267,6 +272,9 @@ class SnooHelperBot:
         if self.flair_enforcer is not None:
             self.flair_enforcer.check_submissions()
 
+        if self.floodgate is not None:
+            self.floodgate.check_all()
+
         for submission in submissions:
             if self.flair_enforcer is not None and submission.link_flair_text is None:
                 self.flair_enforcer.add_submission(submission)
@@ -277,9 +285,12 @@ class SnooHelperBot:
                 continue
 
             if self.filters_controller is not None:
-                results = self.filters_controller.check(submission.title)
+                results = self.filters_controller.check_all(submission.title)
                 if results:
                     self.subreddit.mod.remove(submission)
+
+            if self.floodgate is not None:
+                self.floodgate.accumulate_title(submission.title, submission.created_utc)
 
             try:
                 user = UserModel.get(UserModel.username == submission.author.name.lower() and
@@ -423,7 +434,7 @@ class SnooHelperBot:
         submissions = SubmissionModel.select().where(SubmissionModel.subreddit == self.subreddit_name and
                                                      SubmissionModel.unlock_at)
         for submission in submissions:
-            if time.time() > submission.approve_at.timestamp():
+            if time.time() > submission.unlock_at.timestamp():
                 submission.delete_instance()
                 submission = self.r.submission(submission.submission_id)
                 self.subreddit.mod.unlock(submission)
@@ -433,7 +444,7 @@ class SnooHelperBot:
         submissions = SubmissionModel.select().where(SubmissionModel.subreddit == self.subreddit_name and
                                                      SubmissionModel.lock_at)
         for submission in submissions:
-            if time.time() > submission.approve_at.timestamp():
+            if time.time() > submission.lock_at.timestamp():
                 submission.delete_instance()
                 submission = self.r.submission(submission.submission_id)
                 self.subreddit.mod.lock(submission)

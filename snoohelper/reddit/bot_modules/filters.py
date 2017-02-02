@@ -75,13 +75,11 @@ class FiltersController:
                 self.filters.remove(filter_obj)
                 break
 
-    def check(self, text):
+    def check_all(self, text):
         for filter_obj in self.filters:
             expired = filter_obj.has_expired()
             if expired:
                 self.remove_filter(filter_obj.filter_string)
                 continue
-            result = filter_obj.check_filter(text)
-            if result:
-                return True
+            return filter_obj.check_filter(text), filter_obj
         return False
